@@ -1,0 +1,40 @@
+{
+  "name": "pi-gpt-fast-mode",
+  "version": "0.1.0",
+  "description": "A super basic Pi extension that toggles GPT-5.4 / GPT-5.5 / GPT-5.6 Fast mode with /fast (the default 'priority'), nothing else - one file.",
+  "type": "module",
+  "module": "src/index.ts",
+  "license": "MIT",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "gpt-5.4",
+    "gpt-5.5",
+    "gpt-5.6",
+    "codex",
+    "fast-mode"
+  ],
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "bun test ./test/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "^0.80.3",
+    "@types/bun": "latest",
+    "typescript": "^6"
+  },
+  "files": [
+    "src"
+  ]
+}

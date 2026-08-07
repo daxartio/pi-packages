@@ -1,0 +1,35 @@
+{
+  "name": "pi-todo",
+  "version": "0.1.0",
+  "description": "A Pi extension that provides a persistent todo list overlay.",
+  "type": "module",
+  "module": "src/index.ts",
+  "license": "MIT",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "todo"
+  ],
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
+  },
+  "dependencies": {
+    "typebox": "^1.1.24"
+  },
+  "files": [
+    "src"
+  ]
+}

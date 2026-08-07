@@ -1,0 +1,30 @@
+{
+  "name": "pi-review",
+  "version": "0.1.0",
+  "description": "Standalone /review extension for pi coding agent",
+  "type": "module",
+  "module": "src/index.ts",
+  "license": "MIT",
+  "keywords": [
+    "pi-package",
+    "pi-extension"
+  ],
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "dependencies": {},
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-tui": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "typescript": "^5.8.3"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}
