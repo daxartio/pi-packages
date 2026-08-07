@@ -47,9 +47,12 @@ export { TOOL_NAME } from "./tool/types.js";
 // Tool registration
 // ---------------------------------------------------------------------------
 
-export const DEFAULT_PROMPT_SNIPPET = "Manage a task list to track multi-step progress";
+export const DEFAULT_PROMPT_SNIPPET = "Plan non-trivial work as a visible, complete multi-step task list";
 export const DEFAULT_PROMPT_GUIDELINES: string[] = [
-	"Use `todo` for complex work with 3+ steps, when the user gives you a list of tasks, or immediately after receiving new instructions to capture requirements. Skip it for single trivial tasks and purely conversational requests.",
+	"Use `todo` for any request with multiple execution phases, a list of requirements, or likely investigation, implementation, and validation work. Skip it only for a single trivial action or purely conversational request.",
+	"Before researching, editing files, running commands, or otherwise acting on non-trivial work, create todos for every known execution phase. Do not represent a multi-phase request with one catch-all todo.",
+	"Write concrete, independently observable steps (for example: inspect existing behavior, implement the change, add or update tests, validate the result). A request with 3+ phases must have at least one todo for each phase; include setup, review, documentation, or follow-up steps whenever they are required.",
+	"Keep the plan current: immediately add newly discovered work, blockers, or validation steps as separate todos, and use blockedBy to show dependencies. The list must let a user see what has been done, what is active, and what remains.",
 	"When starting any task, mark it in_progress BEFORE beginning work. Mark it completed IMMEDIATELY when done — never batch completions. Exactly one task should be in_progress at a time.",
 	"Never mark a task completed if tests are failing, the implementation is partial, or you hit unresolved errors — keep it in_progress and create a new task for the blocker instead.",
 	"Task status is a 4-state machine: pending → in_progress → completed, plus deleted as a tombstone. Pass activeForm (present-continuous label, e.g. 'researching existing tool') when marking in_progress.",
@@ -65,7 +68,7 @@ export function registerTodoTool(pi: ExtensionAPI): void {
 		name: TOOL_NAME,
 		label: TOOL_LABEL,
 		description:
-			"Manage a task list for tracking multi-step progress. Actions: create (new task), update (change status/fields/dependencies), list (all tasks, optionally filtered by status), get (single task details), delete (tombstone), clear (reset all). Status: pending → in_progress → completed, plus deleted tombstone. Use this to plan and track multi-step work like research, design, and implementation.",
+			"Manage a visible task plan for multi-step work. Before acting on non-trivial requests, create separate todos for each known phase (such as investigation, implementation, testing, and follow-up) rather than one catch-all task. Actions: create (new task), update (change status/fields/dependencies), list (all tasks, optionally filtered by status), get (single task details), delete (tombstone), clear (reset all). Status: pending → in_progress → completed, plus deleted tombstone.",
 		promptSnippet: guidance.promptSnippet ?? DEFAULT_PROMPT_SNIPPET,
 		promptGuidelines: guidance.promptGuidelines ?? DEFAULT_PROMPT_GUIDELINES,
 		parameters: TodoParamsSchema,
