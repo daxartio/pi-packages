@@ -1,0 +1,15 @@
+{
+  "name": "pi-subagents",
+  "version": "0.1.0",
+  "description": "Bounded isolated child Pi sessions.",
+  "type": "module",
+  "module": "src/index.ts",
+  "license": "MIT",
+  "keywords": ["pi-package", "pi-extension", "subagents"],
+  "pi": { "extensions": ["./src/index.ts"] },
+  "publishConfig": { "access": "public" },
+  "scripts": { "test": "node --import tsx --test test/*.test.ts", "typecheck": "tsc --noEmit" },
+  "peerDependencies": { "@earendil-works/pi-ai": "*", "@earendil-works/pi-coding-agent": "*", "typebox": "*" },
+  "devDependencies": { "tsx": "^4.22.3" },
+  "files": ["src", "agents", "README.md", "LICENSE"]
+}
