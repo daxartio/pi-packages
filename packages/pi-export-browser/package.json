@@ -1,0 +1,38 @@
+{
+  "name": "pi-export-browser",
+  "version": "0.1.0",
+  "description": "A Pi extension that exports the current session to a timestamped HTML file in the system temp dir and opens it in the default browser with /browse.",
+  "type": "module",
+  "module": "src/index.ts",
+  "license": "MIT",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "export",
+    "html",
+    "browser"
+  ],
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "bun test ./test/",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "^0.84.0",
+    "@types/bun": "latest",
+    "typescript": "^6"
+  },
+  "files": [
+    "src"
+  ]
+}
