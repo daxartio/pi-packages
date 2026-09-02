@@ -1,0 +1,40 @@
+{
+  "name": "pi-context",
+  "version": "0.1.0",
+  "description": "A Pi extension that assembles the system prompt from known context sources (AGENTS.md, SYSTEM.md, skills, ...) with configurable defaults, per-session overrides, review output, and token estimates.",
+  "type": "module",
+  "module": "src/index.ts",
+  "license": "MIT",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "context",
+    "system-prompt",
+    "skills"
+  ],
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "bun test ./test/",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "^0.84.0",
+    "@earendil-works/pi-tui": "^0.84.0",
+    "@types/bun": "latest",
+    "typescript": "^6"
+  },
+  "files": [
+    "src"
+  ]
+}
