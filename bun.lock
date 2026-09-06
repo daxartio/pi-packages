@@ -13,6 +13,15 @@
         "typescript": "7.0.2",
       },
     },
+    "packages/pi-btw": {
+      "name": "pi-btw",
+      "version": "0.1.0",
+      "peerDependencies": {
+        "@earendil-works/pi-ai": "*",
+        "@earendil-works/pi-coding-agent": "*",
+        "@earendil-works/pi-tui": "*",
+      },
+    },
     "packages/pi-codex-goal": {
       "name": "pi-codex-goal",
       "version": "0.2.0",
@@ -449,6 +458,8 @@
     "path-key": ["path-key@3.1.1", "", {}, "sha512-ojmeN0qd+y0jszEtoY48r0Peq5dwMEkIlCOu6Q5f41lfkswXuKtYrhgoTpLnyIcHm24Uhqx+5Tqm2InSwLhE6Q=="],
 
     "path-scurry": ["path-scurry@2.0.2", "", { "dependencies": { "lru-cache": "^11.0.0", "minipass": "^7.1.2" } }, "sha512-3O/iVVsJAPsOnpwWIeD+d6z/7PmqApyQePUtCndjatj/9I5LylHvt5qluFaBT3I5h3r1ejfR056c+FCv+NnNXg=="],
+
+    "pi-btw": ["pi-btw@workspace:packages/pi-btw"],
 
     "pi-codex-goal": ["pi-codex-goal@workspace:packages/pi-codex-goal"],
 
