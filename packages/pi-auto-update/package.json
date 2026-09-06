@@ -1,0 +1,32 @@
+{
+  "name": "pi-auto-update",
+  "version": "0.1.0",
+  "description": "Pi extension. Automatically runs `pi update --extensions` and `pi update` when a session starts.",
+  "type": "module",
+  "module": "src/index.ts",
+  "license": "MIT",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "auto-update",
+    "update"
+  ],
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "files": [
+    "src"
+  ]
+}

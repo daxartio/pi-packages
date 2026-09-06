@@ -1,0 +1,37 @@
+{
+  "name": "pi-auto-model",
+  "version": "0.1.0",
+  "description": "Pi extension. Suggests the best model and thinking level from the current scoped-models for each prompt. Nothing switches without your decision.",
+  "type": "module",
+  "module": "src/index.ts",
+  "license": "MIT",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "model-router",
+    "scoped-models",
+    "thinking-level"
+  ],
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "bun test ./test",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "files": [
+    "src"
+  ]
+}
