@@ -22,11 +22,10 @@ explicitly accept a suggestion.
    strong model that solves it in one pass.
 3. If the suggestion matches the current setup, nothing happens. Otherwise you get a
    dialog:
-   - **Switch and resend** — switch model/thinking and re-send the same prompt, so the
-     new model answers it.
+   - **Switch** — switch model/thinking. The current prompt keeps being answered by
+     the previous model; your next prompts go to the new one (no automatic resend).
    - **Always switch this session** — same, plus remember this model: later prompts
-     routed to it switch and resend immediately (still only after your first explicit
-     approval).
+     routed to it switch immediately (still only after your first explicit approval).
    - **Keep current model** — ignore the suggestion.
 4. If the dialog times out or is dismissed, the offer stays pending:
    `/automodel accept` applies it later, `/automodel dismiss` drops it.
@@ -78,14 +77,14 @@ Routing is off until the config exists.
 /automodel status   Show config, current scope, and pending suggestion
 /automodel on       Enable routing (persisted)
 /automodel off      Disable routing (persisted)
-/automodel accept   Accept the pending suggestion: switch model and resend the prompt
+/automodel accept   Accept the pending suggestion: switch model for future prompts
 /automodel dismiss  Drop the pending suggestion
 ```
 
 ## Notes
 
-- Routing runs once per prompt; it never fires twice in a row (the resent prompt is
-  answered directly by the switched model).
+- Accepting a suggestion never resends the prompt — it only switches the model, so
+  the next prompts are answered by the new model.
 - Switching the model manually clears any pending suggestion implicitly — the next
   prompt is classified against your new model.
 - The classifier request uses a short timeout, a bounded token budget, and no cache

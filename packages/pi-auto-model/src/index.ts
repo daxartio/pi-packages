@@ -27,8 +27,6 @@ const MAX_ERROR_LENGTH = 300;
 const OFFER_DIALOG_TIMEOUT_MS = 2 * 60 * 1000;
 
 interface PendingOffer {
-	prompt: string;
-	images: unknown[] | undefined;
 	classification: Classification;
 	candidate: CandidateModel;
 	targetThinkingLevel: ThinkingLevel | undefined;
@@ -73,16 +71,6 @@ export default function autoModel(pi: ExtensionAPI): void {
 	const pickThinkingLevel = (model: Model<Api>, classification: Classification): ThinkingLevel => {
 		const wanted = classification.thinkingLevel ?? defaultThinkingFor(model);
 		return thinkingCapSupported(model, wanted) ? wanted : defaultThinkingFor(model);
-	};
-
-	const resend = (prompt: string, images: unknown[] | undefined): void => {
-		const content =
-			images && images.length > 0
-				? ([...images, { type: "text", text: prompt }] as never)
-				: prompt;
-		// followUp queues the resend behind the in-flight turn instead of failing with
-		// "Agent is already processing" when the user accepts while the default model answers.
-		pi.sendUserMessage(content, { deliverAs: "followUp" });
 	};
 
 	/** Switch to the candidate, restoring the previous model when activation fails. */
@@ -130,10 +118,9 @@ export default function autoModel(pi: ExtensionAPI): void {
 		if (!switched) return;
 		if (remember) autoAccept.add(offer.candidate.ref);
 		ctx.ui.notify(
-			`Auto model: switched to ${formatCandidate(offer.candidate, offer.targetThinkingLevel)} — resending the request.`,
+			`Auto model: switched to ${formatCandidate(offer.candidate, offer.targetThinkingLevel)} — new requests will use it.`,
 			"info",
 		);
-		resend(offer.prompt, offer.images);
 	};
 
 	/** Show the suggestion dialog without blocking the session: on timeout the offer stays pending. */
@@ -144,7 +131,7 @@ export default function autoModel(pi: ExtensionAPI): void {
 		const choice = await ctx.ui.select(
 			`Auto model suggests ${targetLabel} (current: ${currentLabel})${reason}`,
 			[
-				`Switch to ${targetLabel} and resend`,
+				`Switch to ${targetLabel}`,
 				`Always switch to ${offer.candidate.ref} this session`,
 				"Keep current model",
 			],
@@ -234,10 +221,9 @@ export default function autoModel(pi: ExtensionAPI): void {
 				const switched = await applyCandidate(ctx, candidate, targetThinking, currentRef ?? "");
 				if (switched) {
 					ctx.ui.notify(
-						`Auto model: switched to ${formatCandidate(candidate, targetThinking)} (remembered choice). Resending the request.`,
+						`Auto model: switched to ${formatCandidate(candidate, targetThinking)} (remembered choice) — new requests will use it.`,
 						"info",
 					);
-					resend(prompt, images);
 				}
 				return;
 			}
@@ -245,8 +231,6 @@ export default function autoModel(pi: ExtensionAPI): void {
 			if (sameModel && sameThinking) return; // current setup already matches the recommendation
 
 			pending = {
-				prompt,
-				images,
 				classification,
 				candidate,
 				targetThinkingLevel: targetThinking,
@@ -258,7 +242,7 @@ export default function autoModel(pi: ExtensionAPI): void {
 				await offerPrompt(ctx, pending);
 			} else {
 				ctx.ui.notify(
-					`Auto model suggests ${formatCandidate(candidate, targetThinking)} — /automodel accept to switch and resend, /automodel dismiss to ignore.`,
+					`Auto model suggests ${formatCandidate(candidate, targetThinking)} — /automodel accept to switch, /automodel dismiss to ignore.`,
 					"info",
 				);
 			}
@@ -268,7 +252,7 @@ export default function autoModel(pi: ExtensionAPI): void {
 	};
 
 	pi.registerShortcut(ACCEPT_SHORTCUT, {
-		description: "Accept the pending auto-model suggestion (switch model and resend)",
+		description: "Accept the pending auto-model suggestion (switch model)",
 		handler: async (ctx) => {
 			await acceptPending(ctx, false);
 		},
