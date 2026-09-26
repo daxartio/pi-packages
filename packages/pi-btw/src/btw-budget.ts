@@ -60,8 +60,12 @@ export interface CappedHistory {
  * The caller (the build step) owns reading the session history; this function
  * touches no `ExtensionContext`/`globalThis`/`getSessionHistory`.
  */
-export function capHistory(history: BtwTurn[], budget = BTW_HISTORY_TOKEN_BUDGET): CappedHistory {
-	if (history.length === 0) return { admitted: [], estimate: 0, droppedTurns: 0 };
+export function capHistory(
+	history: BtwTurn[],
+	budget = BTW_HISTORY_TOKEN_BUDGET,
+): CappedHistory {
+	if (history.length === 0)
+		return { admitted: [], estimate: 0, droppedTurns: 0 };
 
 	// Seed with the newest turn — this IS the floor guarantee: even an over-budget
 	// newest turn is admitted (estimate unclamped) so the side call always carries it.
@@ -73,7 +77,9 @@ export function capHistory(history: BtwTurn[], budget = BTW_HISTORY_TOKEN_BUDGET
 	// Greedily extend backward over older turns while the running sum stays within budget.
 	// All turns have positive cost, so the first overflow breaks the maximal suffix.
 	for (let i = history.length - 2; i >= 0; i--) {
-		const cost = estimateTokens(history[i].userMessage) + estimateTokens(history[i].assistantMessage);
+		const cost =
+			estimateTokens(history[i].userMessage) +
+			estimateTokens(history[i].assistantMessage);
 		if (estimate + cost > budget) break;
 		estimate += cost;
 		k = i;
@@ -122,8 +128,10 @@ export interface FitBranchResult {
 
 // Stub/truncation literals (research-grounded). BTW_STUB_TEXT is exported for the
 // stub-content test assertion; BTW_TRUNCATE_MARKER_FMT stays private (test asserts the marker substring).
-export const BTW_STUB_TEXT = "[tool result elided by /btw to fit the context window]";
-const BTW_TRUNCATE_MARKER_FMT = (truncatedChars: number): string => `[... ${truncatedChars} characters truncated]`;
+export const BTW_STUB_TEXT =
+	"[tool result elided by /btw to fit the context window]";
+const BTW_TRUNCATE_MARKER_FMT = (truncatedChars: number): string =>
+	`[... ${truncatedChars} characters truncated]`;
 
 // Turn-start discriminator (message-level, NOT the host's entry-level isTurnStartEntry
 // which excludes compaction). branchSummary/compactionSummary are included so a head
@@ -144,7 +152,10 @@ function estimateTextTokens(text: string): number {
 
 /** Skip guard: the window is usable only when the reserve fits. */
 function isBudgetable(model: Model<Api>): boolean {
-	return model.contextWindow > 0 && model.contextWindow > model.maxTokens + BTW_CONTEXT_RESERVE;
+	return (
+		model.contextWindow > 0 &&
+		model.contextWindow > model.maxTokens + BTW_CONTEXT_RESERVE
+	);
 }
 
 /** Sum estimateTokens over an LLM message array (real host primitive, chars/4 per message). */
@@ -172,11 +183,16 @@ function estimateBranchTokens(entries: SessionEntry[]): number {
 		let anchorFound = false;
 		for (let i = entries.length - 1; i >= 0; i--) {
 			const e = entries[i];
-			if (e.type === "message" && e.message.role === "assistant" && e.message.usage === usage) {
+			if (
+				e.type === "message" &&
+				e.message.role === "assistant" &&
+				e.message.usage === usage
+			) {
 				anchorFound = true;
 				break;
 			}
-			for (const m of sessionEntryToContextMessages(e)) tail += estimateTokens(m);
+			for (const m of sessionEntryToContextMessages(e))
+				tail += estimateTokens(m);
 		}
 		// Identity miss (a host returning a derived Usage object) would have made `tail`
 		// span the whole branch and double-count the anchored prefix — drop it instead.
@@ -194,14 +210,19 @@ function estimateBranchTokens(entries: SessionEntry[]): number {
 /** Turn-start test on a raw entry, via the exported message conversion (message-level
  *  discriminator — includes compaction/branch summaries). */
 function isTurnStartEntry(entry: SessionEntry): boolean {
-	return sessionEntryToContextMessages(entry).some((m) => TURN_START_ROLES.has(m.role));
+	return sessionEntryToContextMessages(entry).some((m) =>
+		TURN_START_ROLES.has(m.role),
+	);
 }
 
 /** Forward scan from `fromIndex` to the first turn-start entry at or after it. Returns
  *  the index, or -1 if none exists (caller falls back to stubbing). Scanning forward
  *  past a mid-turn assistant also skips its trailing toolResults → atomicity:
  *  no toolCall without its toolResult and vice versa. */
-function forwardScanToTurnStart(entries: SessionEntry[], fromIndex: number): number {
+function forwardScanToTurnStart(
+	entries: SessionEntry[],
+	fromIndex: number,
+): number {
 	for (let i = fromIndex; i < entries.length; i++) {
 		if (isTurnStartEntry(entries[i])) return i;
 	}
@@ -212,7 +233,10 @@ function forwardScanToTurnStart(entries: SessionEntry[], fromIndex: number): num
  *  turn-start (NOT the host's backward findTurnStartIndex), then unfiltered conversion so
  *  a head compaction/branch summary survives (hybrid filter). Returns {messages:null} when
  *  no valid cut (firstKeptEntryIndex<=0) or no turn-start exists — caller stubs the full cache. */
-function trimBranch(entries: SessionEntry[], keepRecentTokens: number): { messages: Message[] | null } {
+function trimBranch(
+	entries: SessionEntry[],
+	keepRecentTokens: number,
+): { messages: Message[] | null } {
 	const cut = findCutPoint(entries, 0, entries.length, keepRecentTokens);
 	if (cut.firstKeptEntryIndex <= 0) return { messages: null }; // no valid cut → stub the cache
 	const startIdx = forwardScanToTurnStart(entries, cut.firstKeptEntryIndex);
@@ -221,7 +245,9 @@ function trimBranch(entries: SessionEntry[], keepRecentTokens: number): { messag
 	// Hybrid filter: after a cut, UNFILTERED sessionEntryToContextMessages (the sibling
 	// conversion seam — shares convertToLlm with branchToMessages, no duplication) so a
 	// head compaction/branch summary survives, matching the main agent's post-compact context.
-	const trimmed = convertToLlm(keptEntries.flatMap((e) => sessionEntryToContextMessages(e)));
+	const trimmed = convertToLlm(
+		keptEntries.flatMap((e) => sessionEntryToContextMessages(e)),
+	);
 	return { messages: trimmed };
 }
 
@@ -271,7 +297,8 @@ function truncateToFit(result: Message[], budget: number): boolean {
 		for (let i = 0; i < result.length; i++) {
 			const content = result[i].content;
 			if (typeof content === "string") {
-				if (content.length > target.len) target = { mi: i, ci: -1, len: content.length, isString: true };
+				if (content.length > target.len)
+					target = { mi: i, ci: -1, len: content.length, isString: true };
 				continue;
 			}
 			if (Array.isArray(content)) {
@@ -298,12 +325,36 @@ function truncateToFit(result: Message[], budget: number): boolean {
 		// narrowing flows into each arm; the user arm narrows string-vs-array content.
 		if (msg.role === "user") {
 			if (typeof msg.content === "string") {
-				result[target.mi] = { ...msg, content: `${msg.content.slice(0, keepChars)}${marker}` };
+				result[target.mi] = {
+					...msg,
+					content: `${msg.content.slice(0, keepChars)}${marker}`,
+				};
 			} else {
 				const content = [...msg.content];
 				const part = content[target.ci];
 				if (part.type === "text") {
-					content[target.ci] = { ...part, text: `${part.text.slice(0, keepChars)}${marker}` };
+					content[target.ci] = {
+						...part,
+						text: `${part.text.slice(0, keepChars)}${marker}`,
+					};
+					result[target.mi] = { ...msg, content };
+				}
+			}
+		} else if (msg.role === "system") {
+			// System messages may use string content in current pi-ai.
+			if (typeof msg.content === "string") {
+				result[target.mi] = {
+					...msg,
+					content: `${msg.content.slice(0, keepChars)}${marker}`,
+				};
+			} else {
+				const content = [...msg.content];
+				const part = content[target.ci];
+				if (part.type === "text") {
+					content[target.ci] = {
+						...part,
+						text: `${part.text.slice(0, keepChars)}${marker}`,
+					};
 					result[target.mi] = { ...msg, content };
 				}
 			}
@@ -311,15 +362,20 @@ function truncateToFit(result: Message[], budget: number): boolean {
 			const content = [...msg.content];
 			const part = content[target.ci];
 			if (part.type === "text") {
-				content[target.ci] = { ...part, text: `${part.text.slice(0, keepChars)}${marker}` };
+				content[target.ci] = {
+					...part,
+					text: `${part.text.slice(0, keepChars)}${marker}`,
+				};
 				result[target.mi] = { ...msg, content };
 			}
-		} else {
-			// toolResult (msg narrowed to ToolResultMessage)
+		} else if (msg.role === "toolResult") {
 			const content = [...msg.content];
 			const part = content[target.ci];
 			if (part.type === "text") {
-				content[target.ci] = { ...part, text: `${part.text.slice(0, keepChars)}${marker}` };
+				content[target.ci] = {
+					...part,
+					text: `${part.text.slice(0, keepChars)}${marker}`,
+				};
 				result[target.mi] = { ...msg, content };
 			}
 		}
@@ -334,7 +390,10 @@ function truncateToFit(result: Message[], budget: number): boolean {
  *  objects are never mutated. Phase 1 ({@link stubToolResultsToFit}) stubs toolResults
  *  oldest-first; phase 2 ({@link truncateToFit}) truncates the largest text block toward
  *  the token gap. Signature and return shape are unchanged. */
-function stubToFit(messages: Message[], budget: number): { messages: Message[]; stubbed: boolean } {
+function stubToFit(
+	messages: Message[],
+	budget: number,
+): { messages: Message[]; stubbed: boolean } {
 	const result = messages.slice(); // shallow: new array, shared message objects — one place, guards both phases
 	const stubbedTool = stubToolResultsToFit(result, budget);
 	const stubbedTruncated = truncateToFit(result, budget);
@@ -345,7 +404,8 @@ function stubToFit(messages: Message[], budget: number): { messages: Message[]; 
  *  (byte-identical prefix). Otherwise forward-scan trim, then stub/truncate. `keepBudget`
  *  is populated on every path. */
 export function fitBranch(input: FitBranchInput): FitBranchResult {
-	const { entries, messages, model, systemPrompt, question, admittedEstimate } = input;
+	const { entries, messages, model, systemPrompt, question, admittedEstimate } =
+		input;
 
 	// --- Budget resolution ---
 	let branchKeepBudget: number;
@@ -354,13 +414,23 @@ export function fitBranch(input: FitBranchInput): FitBranchResult {
 		// directly to this many branch tokens. The cached snapshot is not re-read.
 		branchKeepBudget = input.keepBudget;
 	} else {
-		const available = model.contextWindow - model.maxTokens - BTW_CONTEXT_RESERVE;
-		const windowBudget = available - estimateTextTokens(systemPrompt) - estimateTokens(question) - admittedEstimate;
+		const available =
+			model.contextWindow - model.maxTokens - BTW_CONTEXT_RESERVE;
+		const windowBudget =
+			available -
+			estimateTextTokens(systemPrompt) -
+			estimateTokens(question) -
+			admittedEstimate;
 		if (!isBudgetable(model)) {
 			// Skip guard: window unusable → fast-path the cached messages, no trim.
 			// keepBudget is still populated (the window-derived value, possibly negative on an
 			// unusable window) so the caller's read never sees undefined — see Notes / Deferred.
-			return { messages, branchWasTrimmed: false, stubbed: false, keepBudget: windowBudget };
+			return {
+				messages,
+				branchWasTrimmed: false,
+				stubbed: false,
+				keepBudget: windowBudget,
+			};
 		}
 		branchKeepBudget = windowBudget;
 	}
@@ -368,7 +438,12 @@ export function fitBranch(input: FitBranchInput): FitBranchResult {
 	// --- Fast path: branch fits → return cached messages by reference (byte-identical prefix) ---
 	const branchUsage = estimateBranchTokens(entries);
 	if (branchUsage <= branchKeepBudget) {
-		return { messages, branchWasTrimmed: false, stubbed: false, keepBudget: branchKeepBudget };
+		return {
+			messages,
+			branchWasTrimmed: false,
+			stubbed: false,
+			keepBudget: branchKeepBudget,
+		};
 	}
 
 	// --- Forward-scan trim ---
@@ -376,7 +451,12 @@ export function fitBranch(input: FitBranchInput): FitBranchResult {
 	if (trim.messages) {
 		// Trimmed suffix fits → done (trimmed only).
 		if (estimateMessagesTokens(trim.messages) <= branchKeepBudget) {
-			return { messages: trim.messages, branchWasTrimmed: true, stubbed: false, keepBudget: branchKeepBudget };
+			return {
+				messages: trim.messages,
+				branchWasTrimmed: true,
+				stubbed: false,
+				keepBudget: branchKeepBudget,
+			};
 		}
 		// Still over after trimming → stub the TRIMMED suffix (branchWasTrimmed stays true).
 		const stubbed = stubToFit(trim.messages, branchKeepBudget);

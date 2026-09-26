@@ -111,6 +111,11 @@ afterEach(() => {
 });
 
 test("patches only supported GPT payloads", () => {
+	expect(SUPPORTED_MODELS).toContain("openai/gpt-6-sol");
+	expect(SUPPORTED_MODELS).toContain("openai/gpt-6-luna");
+	expect(SUPPORTED_MODELS).toContain("openai-codex/gpt-6-sol");
+	expect(SUPPORTED_MODELS).toContain("openai-codex/gpt-6-luna");
+
 	for (const key of SUPPORTED_MODELS) {
 		const [provider, id] = key.split("/");
 		expect(shouldApplyFastMode({ provider, id }, { model: id })).toBe(true);

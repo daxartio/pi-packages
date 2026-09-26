@@ -11,8 +11,11 @@
  * be overridden - /browse is the browser-opening counterpart.
  */
 
-import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
-import { exportAndOpen, type ExportState } from "./export.js";
+import type {
+	ExtensionAPI,
+	ExtensionCommandContext,
+} from "@earendil-works/pi-coding-agent";
+import { type ExportState, exportAndOpen } from "./export.js";
 
 /**
  * Reconstruct the AgentState slice the export template needs. The built-in
@@ -20,30 +23,49 @@ import { exportAndOpen, type ExportState } from "./export.js";
  * API instead: ctx.getSystemPrompt() for the full effective prompt and
  * pi.getAllTools() filtered down to the currently active tools.
  */
-export function buildExportState(pi: ExtensionAPI, ctx: ExtensionCommandContext): ExportState {
+export function buildExportState(
+	pi: ExtensionAPI,
+	ctx: ExtensionCommandContext,
+): ExportState {
 	const activeNames = new Set(pi.getActiveTools());
 	const tools = pi
 		.getAllTools()
-		.filter((tool) => activeNames.size === 0 || activeNames.has(tool.name))
-		.map(({ name, description, parameters }) => ({ name, description, parameters }));
+		.filter((tool) => activeNames.has(tool.name))
+		.map(({ name, description, parameters }) => ({
+			name,
+			description,
+			parameters,
+		}));
 	return { systemPrompt: ctx.getSystemPrompt(), tools };
 }
 
 export default function exportBrowserExtension(pi: ExtensionAPI): void {
 	pi.registerCommand("browse", {
-		description: "Export session HTML (with system prompt and tools) to the temp dir and open it in the browser",
+		description:
+			"Export session HTML (with system prompt and tools) to the temp dir and open it in the browser",
 		handler: async (_args, ctx) => {
-			const notify = (message: string, level: "info" | "warning" | "error" = "info") =>
-				ctx.ui?.notify?.(message, level);
+			const notify = (
+				message: string,
+				level: "info" | "warning" | "error" = "info",
+			) => ctx.ui?.notify?.(message, level);
 			if (!ctx.sessionManager.getSessionFile()) {
-				notify("pi-export-browser: nothing to export yet - start a conversation first", "warning");
+				notify(
+					"pi-export-browser: nothing to export yet - start a conversation first",
+					"warning",
+				);
 				return;
 			}
 			try {
-				const { filePath } = await exportAndOpen(ctx.sessionManager, buildExportState(pi, ctx));
+				const { filePath } = await exportAndOpen(
+					ctx.sessionManager,
+					buildExportState(pi, ctx),
+				);
 				notify(`Session exported and opened in browser: ${filePath}`);
 			} catch (error) {
-				notify(`pi-export-browser: ${error instanceof Error ? error.message : String(error)}`, "error");
+				notify(
+					`pi-export-browser: ${error instanceof Error ? error.message : String(error)}`,
+					"error",
+				);
 			}
 		},
 	});

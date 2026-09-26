@@ -1,8 +1,12 @@
 import { readFileSync } from "node:fs";
-import type { BuildSystemPromptOptions, Skill } from "@earendil-works/pi-coding-agent";
+import type {
+	BuildSystemPromptOptions,
+	Skill,
+} from "@earendil-works/pi-coding-agent";
 import type { ContextConfig, SourceDefaults } from "./config.js";
 
 export type { SourceDefaults } from "./config.js";
+
 import { estimateTokensFromText } from "./discovery.js";
 
 /** Map plan entry kinds onto config source flags. */
@@ -64,7 +68,9 @@ function readContent(path: string): string {
 function skillSnippetTokens(skill: Skill): number {
 	// Estimate what buildSystemPrompt actually injects per skill:
 	// <skill><name/><description/><location/></skill> plus wrapper lines.
-	return estimateTokensFromText(`${skill.name}${skill.description}${skill.filePath}`);
+	return estimateTokensFromText(
+		`${skill.name}${skill.description}${skill.filePath}`,
+	);
 }
 
 /**
@@ -75,7 +81,13 @@ function skillSnippetTokens(skill: Skill): number {
  */
 export function collectEntries(
 	options: BuildSystemPromptOptions,
-	discovered: Array<{ path: string; kind: PlanEntry["kind"]; label: string; content: string; tokens: number }>,
+	discovered: Array<{
+		path: string;
+		kind: PlanEntry["kind"];
+		label: string;
+		content: string;
+		tokens: number;
+	}>,
 ): PlanEntry[] {
 	const entries: PlanEntry[] = [];
 	const seenPaths = new Set<string>();
@@ -143,9 +155,16 @@ export function collectEntries(
 }
 
 /** Apply persistent defaults (per kind) and per-session overrides (per id) to entries. */
-export function applyConfig(entries: PlanEntry[], config: ContextConfig, overrides: SessionOverrides): PlanEntry[] {
+export function applyConfig(
+	entries: PlanEntry[],
+	config: ContextConfig,
+	overrides: SessionOverrides,
+): PlanEntry[] {
 	return entries.map((entry) => {
-		let enabled = entry.kind === "extra" ? true : config.sources[sourceKeyOf(entry.kind)] !== false;
+		let enabled =
+			entry.kind === "extra"
+				? true
+				: config.sources[sourceKeyOf(entry.kind)] !== false;
 		let origin: PlanEntry["origin"] = "default";
 		if (overrides.forceOn.has(entry.id)) {
 			enabled = true;
@@ -161,7 +180,9 @@ export function applyConfig(entries: PlanEntry[], config: ContextConfig, overrid
 export function buildPlan(entries: PlanEntry[]): ContextPlan {
 	return {
 		entries,
-		enabledTokens: entries.filter((e) => e.enabled).reduce((sum, e) => sum + e.tokens, 0),
+		enabledTokens: entries
+			.filter((e) => e.enabled)
+			.reduce((sum, e) => sum + e.tokens, 0),
 		totalTokens: entries.reduce((sum, e) => sum + e.tokens, 0),
 	};
 }
@@ -170,7 +191,10 @@ export function buildPlan(entries: PlanEntry[]): ContextPlan {
  * Recompute the plan with a draft enabled-state per entry, without touching
  * config or session overrides. Used to preview pending picker changes.
  */
-export function applyDraft(entries: PlanEntry[], draftEnabled: Map<string, boolean>): ContextPlan {
+export function applyDraft(
+	entries: PlanEntry[],
+	draftEnabled: Map<string, boolean>,
+): ContextPlan {
 	const next = entries.map((entry) => {
 		const enabled = draftEnabled.get(entry.id) ?? entry.enabled;
 		return { ...entry, enabled };
@@ -178,42 +202,52 @@ export function applyDraft(entries: PlanEntry[], draftEnabled: Map<string, boole
 	return buildPlan(next);
 }
 
-/**
- * Rebuild the system prompt honoring the plan: disabled context files and
- * skills are removed, customPrompt (SYSTEM.md) / appendSystemPrompt
- * (APPEND_SYSTEM.md) are dropped when their kind is disabled, enabled
- * discovered extras are appended, everything else is delegated to pi's own
- * buildSystemPrompt. Returns undefined when nothing changed.
- */
-export function rebuildSystemPrompt(
+/** Apply the selected sources to pi's mutable structured prompt options. */
+export function applyContextPlan(
 	options: BuildSystemPromptOptions,
 	plan: ContextPlan,
-	build: (options: BuildSystemPromptOptions) => string,
-): string | undefined {
-	const isFileEntry = (e: PlanEntry) => e.kind === "agents" || e.kind === "extra";
-	const disabledFiles = new Set(plan.entries.filter((e) => !e.enabled && isFileEntry(e)).map((e) => e.path));
-	const disabledSkills = new Set(plan.entries.filter((e) => !e.enabled && e.kind === "skill").map((e) => e.label));
-	const piFilePaths = new Set((options.contextFiles ?? []).map((file) => file.path));
-	const addedFiles = plan.entries.filter((e) => e.enabled && e.kind === "extra" && !piFilePaths.has(e.path));
+): boolean {
+	const isFileEntry = (e: PlanEntry) =>
+		e.kind === "agents" || e.kind === "extra";
+	const disabledFiles = new Set(
+		plan.entries.filter((e) => !e.enabled && isFileEntry(e)).map((e) => e.path),
+	);
+	const disabledSkills = new Set(
+		plan.entries
+			.filter((e) => !e.enabled && e.kind === "skill")
+			.map((e) => e.label),
+	);
+	const piFilePaths = new Set(
+		(options.contextFiles ?? []).map((file) => file.path),
+	);
+	const addedFiles = plan.entries.filter(
+		(e) => e.enabled && e.kind === "extra" && !piFilePaths.has(e.path),
+	);
 	const systemEntry = plan.entries.find((e) => e.kind === "system");
 	const appendEntry = plan.entries.find((e) => e.kind === "appendSystem");
 	const dropCustomPrompt = systemEntry !== undefined && !systemEntry.enabled;
 	const dropAppendPrompt = appendEntry !== undefined && !appendEntry.enabled;
 	const changed =
-		disabledFiles.size > 0 || disabledSkills.size > 0 || addedFiles.length > 0 || dropCustomPrompt || dropAppendPrompt;
-	if (!changed) return undefined;
-	const contextFiles = (options.contextFiles ?? []).filter((file) => !disabledFiles.has(file.path));
+		disabledFiles.size > 0 ||
+		disabledSkills.size > 0 ||
+		addedFiles.length > 0 ||
+		dropCustomPrompt ||
+		dropAppendPrompt;
+	if (!changed) return false;
+	const contextFiles = (options.contextFiles ?? []).filter(
+		(file) => !disabledFiles.has(file.path),
+	);
 	for (const entry of addedFiles) {
 		contextFiles.push({ path: entry.path, content: readContent(entry.path) });
 	}
-	const skills = (options.skills ?? []).filter((skill: Skill) => !disabledSkills.has(skill.name));
-	return build({
-		...options,
-		contextFiles,
-		skills,
-		customPrompt: dropCustomPrompt ? undefined : options.customPrompt,
-		appendSystemPrompt: dropAppendPrompt ? undefined : options.appendSystemPrompt,
-	});
+	const skills = (options.skills ?? []).filter(
+		(skill: Skill) => !disabledSkills.has(skill.name),
+	);
+	options.contextFiles = contextFiles;
+	options.skills = skills;
+	if (dropCustomPrompt) options.customPrompt = undefined;
+	if (dropAppendPrompt) options.appendSystemPrompt = undefined;
+	return true;
 }
 
 /** Compact one-line summary for the footer status. */
@@ -225,14 +259,22 @@ export function formatStatus(plan: ContextPlan): string {
 /** Multi-line human-readable review of the current context plan. */
 export function formatPlanReview(plan: ContextPlan): string {
 	const lines: string[] = [];
-	lines.push(`Context plan — ${plan.entries.filter((e) => e.enabled).length}/${plan.entries.length} sources, ~${plan.enabledTokens} of ~${plan.totalTokens} tokens`);
+	lines.push(
+		`Context plan — ${plan.entries.filter((e) => e.enabled).length}/${plan.entries.length} sources, ~${plan.enabledTokens} of ~${plan.totalTokens} tokens`,
+	);
 	const byKind = new Map<PlanEntry["kind"], PlanEntry[]>();
 	for (const entry of plan.entries) {
 		const group = byKind.get(entry.kind) ?? [];
 		group.push(entry);
 		byKind.set(entry.kind, group);
 	}
-	for (const kind of ["agents", "system", "appendSystem", "skill", "extra"] as const) {
+	for (const kind of [
+		"agents",
+		"system",
+		"appendSystem",
+		"skill",
+		"extra",
+	] as const) {
 		const group = byKind.get(kind);
 		if (!group || group.length === 0) continue;
 		lines.push("");
