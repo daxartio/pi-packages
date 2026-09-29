@@ -1,7 +1,6 @@
 ---
 name: system-designer
-description: Designs production-oriented systems with explicit tradeoffs and migration paths.
-model: openai-codex/gpt-5.6-sol
+description: Designs production-oriented systems with explicit tradeoffs and migration paths. Recommended model: the strongest available model with deep architecture reasoning and explicit tradeoff analysis.
 aliases: design,architect
 tools: read,grep,find,ls
 ---

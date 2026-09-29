@@ -14,17 +14,20 @@ Restart Pi or run `/reload` after installation.
 
 ## Built-in agents
 
+- `default` — general-purpose agent for tasks that do not fit a specialized agent.
 - `scout` — read-only codebase investigation.
-- `reviewer` (`review`, `code-review`) — code review with `openai-codex/gpt-5.6-sol`.
-- `dependency-updater` (`deps`, `dependency-update`) — dependency updates with `openai-codex/gpt-5.6-luna`.
-- `researcher` (`research`, `investigator`) — technical research with `openai-codex/gpt-5.6-terra`.
-- `system-designer` (`design`, `architect`) — system design with `openai-codex/gpt-5.6-sol`.
+- `reviewer` (`review`, `code-review`) — code review.
+- `dependency-updater` (`deps`, `dependency-update`) — dependency updates.
+- `researcher` (`research`, `investigator`) — technical research.
+- `system-designer` (`design`, `architect`) — system design.
+
+Agents do not pin a model. The child session uses the orchestrator-selected model; each agent description carries a "Recommended model" hint describing the capability tier the role needs.
 
 ## Pi commands
 
 - `/subagents` — list the available named agents and their descriptions.
 
-The extension also registers the `subagent` **tool**. Ask Pi to use it, or invoke it through an RPC/tool client. It has these forms:
+The extension also registers the `subagent` **tool**. Ask Pi to use it, or invoke it through an RPC/tool client. The tool description includes the list of available agents so the orchestrator can pick the right one. It has these forms:
 
 ```json
 { "task": "Find the authentication entry points" }

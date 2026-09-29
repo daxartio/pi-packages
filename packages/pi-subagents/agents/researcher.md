@@ -1,7 +1,6 @@
 ---
 name: researcher
-description: Investigates code and available technical sources to produce an evidence-backed synthesis.
-model: openai-codex/gpt-5.6-terra
+description: Investigates code and available technical sources to produce an evidence-backed synthesis. Recommended model: a strong balanced model with broad technical knowledge and good evidence synthesis.
 aliases: research,investigator
 tools: read,grep,find,ls,bash
 ---

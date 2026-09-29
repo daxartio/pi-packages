@@ -3,16 +3,22 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { discoverAgents, resolveAgent } from "../src/agents.js";
+import {
+	discoverAgents,
+	formatAvailableAgents,
+	resolveAgent,
+} from "../src/agents.js";
 
-const expectedModels = new Map([
-	["dependency-updater", "openai-codex/gpt-5.6-luna"],
-	["researcher", "openai-codex/gpt-5.6-terra"],
-	["reviewer", "openai-codex/gpt-5.6-sol"],
-	["system-designer", "openai-codex/gpt-5.6-sol"],
-]);
+const expectedAgents = [
+	"default",
+	"dependency-updater",
+	"researcher",
+	"reviewer",
+	"scout",
+	"system-designer",
+];
 
-test("discovers specialized built-in agents with their assigned models", async () => {
+test("discovers built-in agents without pinned models", async () => {
 	const cwd = await mkdtemp(join(tmpdir(), "pi-subagents-agents-"));
 
 	try {
@@ -22,16 +28,23 @@ test("discovers specialized built-in agents with their assigned models", async (
 			projectTrusted: false,
 		});
 
-		for (const [name, model] of expectedModels) {
+		for (const name of expectedAgents) {
 			const agent = resolveAgent(agents, name);
-			assert.equal(agent.model, model);
+			assert.equal(agent.model, undefined);
 			assert.equal(agent.source, "builtin");
+			assert.match(agent.description, /Recommended model:/u);
+			assert.doesNotMatch(agent.systemPrompt, /Recommended model:/u);
 		}
 
 		assert.equal(resolveAgent(agents, "review").name, "reviewer");
 		assert.equal(resolveAgent(agents, "deps").name, "dependency-updater");
 		assert.equal(resolveAgent(agents, "research").name, "researcher");
 		assert.equal(resolveAgent(agents, "design").name, "system-designer");
+
+		const listing = formatAvailableAgents(agents);
+		for (const name of expectedAgents) {
+			assert.ok(listing.includes(`- ${name}`), `missing ${name} in listing`);
+		}
 	} finally {
 		await rm(cwd, { recursive: true, force: true });
 	}

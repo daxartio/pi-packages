@@ -81,7 +81,6 @@ export async function discoverAgents(input: {
       definitions.set(name, {
         name,
         description: String(meta.description ?? ""),
-        ...(meta.model ? { model: String(meta.model) } : {}),
         tools: selectedTools,
         systemPrompt,
         aliases: String(meta.aliases ?? "")
@@ -99,6 +98,18 @@ export async function discoverAgents(input: {
   }
   return [...definitions.values()];
 }
+export function formatAvailableAgents(
+  definitions: AgentDefinition[],
+): string {
+  return [...definitions]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(
+      (agent) =>
+        `- ${agent.name}${agent.aliases.length ? ` (aliases: ${agent.aliases.join(", ")})` : ""} — ${agent.description}`,
+    )
+    .join("\n");
+}
+
 export function resolveAgent(
   definitions: AgentDefinition[],
   name: string,

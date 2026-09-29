@@ -1,5 +1,5 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { discoverAgents } from "./agents.js";
+import { discoverAgents, formatAvailableAgents } from "./agents.js";
 import { RpcChildExecutor } from "./child-executor.js";
 import { SubagentOrchestrator, type Planner } from "./orchestrator.js";
 import { formatRunOutput } from "./output.js";
@@ -23,13 +23,39 @@ const planner: Planner = {
   },
 };
 const executor = new RpcChildExecutor();
+const BASE_TOOL_DESCRIPTION =
+  "Run a named isolated subagent, or omit agent for a bounded read-only workflow. Prefer a named agent when one matches the task. Omitting both agent and tasks starts dynamic planning. Agents do not pin a model; they inherit the orchestrator-selected model, and each agent description includes a recommended model tier.";
+const SECTION_KEY = "subagent_available_agents";
 
-export default function register(pi: ExtensionAPI): void {
+async function loadAvailableAgents(cwd: string): Promise<string> {
+  try {
+    return formatAvailableAgents(
+      await discoverAgents({ cwd, scope: "both", projectTrusted: true }),
+    );
+  } catch {
+    return "";
+  }
+}
+
+export default async function register(pi: ExtensionAPI): Promise<void> {
+  const agents = await loadAvailableAgents(process.cwd());
+
+  pi.on("before_agent_start", async (event) => {
+    const current = await loadAvailableAgents(process.cwd());
+    if (current) {
+      event.systemPromptOptions.sections[SECTION_KEY] =
+        `Available subagents for the subagent tool:\n${current}`;
+    } else {
+      delete event.systemPromptOptions.sections[SECTION_KEY];
+    }
+  });
+
   pi.registerTool({
     name: "subagent",
     label: "Subagent",
-    description:
-      "Run a named isolated subagent, or omit agent for a bounded read-only workflow.",
+    description: agents
+      ? `${BASE_TOOL_DESCRIPTION}\n\nAvailable agents:\n${agents}`
+      : BASE_TOOL_DESCRIPTION,
     parameters: SubagentParams,
     async execute(_id, params, signal, _update, ctx) {
       try {

@@ -1,7 +1,6 @@
 ---
 name: dependency-updater
-description: Safely updates project dependencies and validates compatibility.
-model: openai-codex/gpt-5.6-luna
+description: Safely updates project dependencies and validates compatibility. Recommended model: a fast, lower-cost model is usually sufficient when constraints and validation commands are clear; use a stronger model for complex migrations or resolver conflicts.
 aliases: deps,dependency-update
 tools: read,grep,find,ls,bash,edit,write
 ---

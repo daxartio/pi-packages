@@ -1,39 +1,68 @@
 import { Type, type Static } from "typebox";
 import type { ExplicitTaskRequest, RunRequest, TaskRequest } from "./types.js";
 
+const AGENT_DESCRIPTION =
+  "Name (or alias) of the agent to run. Available agents are listed in the tool description. Prefer the most specific agent: scout (read-only investigation), reviewer (code review), researcher (technical research), system-designer (architecture/design), dependency-updater (dependency changes). Use `default` for general code-changing tasks that no specialized agent covers.";
+const TASK_DESCRIPTION =
+  "Self-contained instruction for the subagent. It does not see this conversation, so include all required context and file paths.";
+const CONTEXT_DESCRIPTION =
+  "`fresh` starts an isolated session. `fork` is currently unsupported.";
+const CWD_DESCRIPTION =
+  "Working directory for the subagent. Must be inside the current workspace unless explicitly approved.";
+const TaskParams = Type.Object({
+  agent: Type.String({ minLength: 1, description: AGENT_DESCRIPTION }),
+  task: Type.String({
+    minLength: 1,
+    maxLength: 32_768,
+    description: TASK_DESCRIPTION,
+  }),
+  context: Type.Optional(
+    Type.Union([Type.Literal("fresh"), Type.Literal("fork")], {
+      description: CONTEXT_DESCRIPTION,
+    }),
+  ),
+  cwd: Type.Optional(Type.String({ description: CWD_DESCRIPTION })),
+});
+
 export const SubagentParams = Type.Object(
   {
-    agent: Type.Optional(Type.String({ minLength: 1, maxLength: 128 })),
-    task: Type.Optional(Type.String({ minLength: 1, maxLength: 32_768 })),
-    context: Type.Optional(
-      Type.Union([Type.Literal("fresh"), Type.Literal("fork")]),
+    agent: Type.Optional(
+      Type.String({
+        minLength: 1,
+        maxLength: 128,
+        description: AGENT_DESCRIPTION,
+      }),
     ),
-    cwd: Type.Optional(Type.String({ minLength: 1 })),
+    task: Type.Optional(
+      Type.String({
+        minLength: 1,
+        maxLength: 32_768,
+        description: TASK_DESCRIPTION,
+      }),
+    ),
+    context: Type.Optional(
+      Type.Union([Type.Literal("fresh"), Type.Literal("fork")], {
+        description: CONTEXT_DESCRIPTION,
+      }),
+    ),
+    cwd: Type.Optional(
+      Type.String({ minLength: 1, description: CWD_DESCRIPTION }),
+    ),
     tasks: Type.Optional(
-      Type.Array(
-        Type.Object({
-          agent: Type.String({ minLength: 1 }),
-          task: Type.String({ minLength: 1, maxLength: 32_768 }),
-          context: Type.Optional(
-            Type.Union([Type.Literal("fresh"), Type.Literal("fork")]),
-          ),
-          cwd: Type.Optional(Type.String()),
-        }),
-        { minItems: 1, maxItems: 8 },
-      ),
+      Type.Array(TaskParams, {
+        minItems: 1,
+        maxItems: 8,
+        description:
+          "Run these agent tasks in parallel. Mutually exclusive with `chain`.",
+      }),
     ),
     chain: Type.Optional(
-      Type.Array(
-        Type.Object({
-          agent: Type.String({ minLength: 1 }),
-          task: Type.String({ minLength: 1, maxLength: 32_768 }),
-          context: Type.Optional(
-            Type.Union([Type.Literal("fresh"), Type.Literal("fork")]),
-          ),
-          cwd: Type.Optional(Type.String()),
-        }),
-        { minItems: 1, maxItems: 8 },
-      ),
+      Type.Array(TaskParams, {
+        minItems: 1,
+        maxItems: 8,
+        description:
+          "Run these agent tasks sequentially. Use {previous} in a task to insert the previous task output. Mutually exclusive with `tasks`.",
+      }),
     ),
   },
   { additionalProperties: false },
