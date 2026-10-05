@@ -1,7 +1,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { discoverAgents, formatAvailableAgents } from "./agents.js";
 import { RpcChildExecutor } from "./child-executor.js";
-import { SubagentOrchestrator, type Planner } from "./orchestrator.js";
+import { type Planner, SubagentOrchestrator } from "./orchestrator.js";
 import { formatRunOutput } from "./output.js";
 import { parseRequest, SubagentParams } from "./schema.js";
 import type { DynamicPlanV1 } from "./types.js";
@@ -24,7 +24,7 @@ const planner: Planner = {
 };
 const executor = new RpcChildExecutor();
 const BASE_TOOL_DESCRIPTION =
-  "Run a named isolated subagent, or omit agent for a bounded read-only workflow. Prefer a named agent when one matches the task. Omitting both agent and tasks starts dynamic planning. Agents do not pin a model; they inherit the orchestrator-selected model, and each agent description includes a recommended model tier.";
+  "Run a named isolated subagent, or omit agent for a bounded read-only workflow. Prefer a named agent when one matches the task. Use exactly one form: top-level agent/task for a single agent, tasks for parallel agents, or chain for sequential agents. If forms are mixed, tasks takes precedence over chain, and either array overrides the top-level single-task fields; ignored forms are not executed. Providing only task starts dynamic planning. Agents do not pin a model; they inherit the orchestrator-selected model, and each agent description includes a recommended model tier.";
 const SECTION_KEY = "subagent_available_agents";
 
 async function loadAvailableAgents(cwd: string): Promise<string> {

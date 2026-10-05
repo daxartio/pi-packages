@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, realpath, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import {
-  SubagentOrchestrator,
   type ChildExecutor,
+  SubagentOrchestrator,
 } from "../src/orchestrator.js";
 import { formatRunOutput } from "../src/output.js";
+import { parseRequest } from "../src/schema.js";
 import type { AgentDefinition } from "../src/types.js";
 import { authorizeRequestWorkspaces } from "../src/workspace.js";
 
@@ -63,6 +64,36 @@ test("parallel mode runs tasks concurrently and preserves result order", async (
     result.tasks.map((task) => task.text),
     ["first", "second", "third"],
   );
+});
+
+test("mixed forms execute only the selected tasks without duplicate agents", async () => {
+  const calls: string[] = [];
+  const executor: ChildExecutor = {
+    async run(input) {
+      calls.push(input.task);
+      return input.task;
+    },
+  };
+  const runtime = new SubagentOrchestrator(
+    new Map([[agent.name, agent]]),
+    executor,
+    planner,
+    "/project",
+  );
+
+  const result = await runtime.run(
+    parseRequest({
+      agent: "unknown-single-agent",
+      task: "ignored single task",
+      tasks: [{ agent: "scout", task: "selected task" }],
+      chain: [{ agent: "unknown-chain-agent", task: "same" }],
+    }),
+  );
+
+  assert.equal(result.state, "completed");
+  assert.equal(result.tasks.length, 1);
+  assert.deepEqual(calls, ["selected task"]);
+  assert.equal(result.tasks[0]?.text, "selected task");
 });
 
 test("orchestrator forwards cwd and fresh context and rejects unsupported fork", async () => {

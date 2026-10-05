@@ -1,4 +1,4 @@
-import { Type, type Static } from "typebox";
+import { type Static, Type } from "typebox";
 import type { ExplicitTaskRequest, RunRequest, TaskRequest } from "./types.js";
 
 const AGENT_DESCRIPTION =
@@ -53,7 +53,7 @@ export const SubagentParams = Type.Object(
         minItems: 1,
         maxItems: 8,
         description:
-          "Run these agent tasks in parallel. Mutually exclusive with `chain`.",
+          "Run these agent tasks in parallel. For parallel mode, provide only `tasks`, not `chain` or top-level `agent`/`task`. If both arrays are supplied, `tasks` takes precedence and `chain` is ignored.",
       }),
     ),
     chain: Type.Optional(
@@ -61,7 +61,7 @@ export const SubagentParams = Type.Object(
         minItems: 1,
         maxItems: 8,
         description:
-          "Run these agent tasks sequentially. Use {previous} in a task to insert the previous task output. Mutually exclusive with `tasks`.",
+          "Run these agent tasks sequentially. Use {previous} in a task to insert the previous task output. For sequential mode, provide only `chain`, not `tasks` or top-level `agent`/`task`. Ignored when `tasks` is supplied.",
       }),
     ),
   },
@@ -84,8 +84,6 @@ function explicit(input: SubagentInput): ExplicitTaskRequest {
   return { ...value, agent: input.agent };
 }
 export function parseRequest(input: SubagentInput): RunRequest {
-  if (input.tasks !== undefined && input.chain !== undefined)
-    throw new InvalidRequestError("choose tasks or chain, not both");
   if (input.tasks !== undefined)
     return { mode: "parallel", tasks: input.tasks };
   if (input.chain !== undefined) return { mode: "chain", tasks: input.chain };

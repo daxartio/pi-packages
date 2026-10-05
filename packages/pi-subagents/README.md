@@ -44,4 +44,4 @@ Omitting `agent` starts the bounded dynamic workflow. Dynamic workers are read-o
 { "chain": [{ "agent": "scout", "task": "Inspect configuration" }, { "agent": "system-designer", "task": "Design improvements based on {previous}" }] }
 ```
 
-`tasks` runs explicit named-agent jobs in parallel; `chain` runs them in order. A named agent that does not exist is an error and never falls back to dynamic planning. Set `PI_SUBAGENTS_PI` to use a specific Pi executable for child RPC processes.
+`tasks` runs explicit named-agent jobs in parallel; `chain` runs them in order. Provide only one form per call: top-level `agent`/`task`, `tasks`, or `chain`. If forms are mixed, `tasks` takes precedence over `chain`, and either array overrides the top-level single-task fields. Ignored forms are not executed, so duplicated fields do not start extra agents. A named agent that does not exist is an error and never falls back to dynamic planning. Set `PI_SUBAGENTS_PI` to use a specific Pi executable for child RPC processes.

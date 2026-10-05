@@ -10,6 +10,43 @@ test("omitted agent creates a dynamic workflow while explicit agent bypasses pla
     "single",
   );
 });
+test("tasks take precedence over chain and duplicated single-task fields", () => {
+  const selected = {
+    agent: "reviewer",
+    task: "Review CLI configuration",
+    context: "fresh" as const,
+    cwd: "/project",
+  };
+  const tasks = [selected];
+  const chain = [{ ...selected, task: "same" }];
+  const input = { ...selected, tasks, chain };
+
+  assert.deepEqual(parseRequest(input), { mode: "parallel", tasks });
+  assert.deepEqual(input, { ...selected, tasks, chain });
+});
+
+test("chain takes precedence over single-task fields when tasks are omitted", () => {
+  const chain = [
+    { agent: "scout", task: "Inspect configuration" },
+    { agent: "reviewer", task: "Review {previous}" },
+  ];
+
+  assert.deepEqual(parseRequest({ agent: "default", task: "ignored", chain }), {
+    mode: "chain",
+    tasks: chain,
+  });
+});
+
+test("parallel tasks and single-task validation retain their existing behavior", () => {
+  const tasks = [{ agent: "scout", task: "Inspect configuration" }];
+  assert.deepEqual(parseRequest({ tasks }), { mode: "parallel", tasks });
+  assert.throws(() => parseRequest({}), /task is required/u);
+  assert.throws(
+    () => parseRequest({ agent: " ", task: "inspect" }),
+    /agent must be a non-empty string/u,
+  );
+});
+
 test("DAG gets stable IDs and rejects cycles", () => {
   const plan = validateDag({
     version: 1,
