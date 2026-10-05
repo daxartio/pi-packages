@@ -13,26 +13,25 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
-export const SUPPORTED_MODELS = new Set([
-	"openai/gpt-5.4",
-	"openai/gpt-5.4-mini",
-	"openai/gpt-5.5",
-	"openai/gpt-5.6",
-	"openai/gpt-5.6-sol",
-	"openai/gpt-5.6-terra",
-	"openai/gpt-5.6-luna",
-	"openai/gpt-6-sol",
-	"openai/gpt-6-luna",
-	"openai-codex/gpt-5.4",
-	"openai-codex/gpt-5.4-mini",
-	"openai-codex/gpt-5.5",
-	"openai-codex/gpt-5.6",
-	"openai-codex/gpt-5.6-sol",
-	"openai-codex/gpt-5.6-terra",
-	"openai-codex/gpt-5.6-luna",
-	"openai-codex/gpt-6-sol",
-	"openai-codex/gpt-6-luna",
-]);
+const SUPPORTED_MODEL_IDS = [
+	"gpt-5.4",
+	"gpt-5.4-mini",
+	"gpt-5.5",
+	"gpt-5.6",
+	"gpt-5.6-sol",
+	"gpt-5.6-terra",
+	"gpt-5.6-luna",
+	"gpt-6-astra",
+	"gpt-6-sol",
+	"gpt-6-luna",
+	"gpt-6.1-sol",
+];
+
+export const SUPPORTED_MODELS = new Set(
+	["openai", "openai-codex", "github-copilot"].flatMap((provider) =>
+		SUPPORTED_MODEL_IDS.map((id) => `${provider}/${id}`),
+	),
+);
 export const TARGET_PROVIDER = "openai-codex";
 export const TARGET_MODEL = "gpt-5.6";
 export const FAST_SERVICE_TIER = "priority";
@@ -78,7 +77,7 @@ export function shouldApplyFastMode(
 	return isSupportedModel(model) && requestModel === model?.id;
 }
 
-/** Return a patched provider payload that asks Codex for the Fast service tier. */
+/** Return a patched provider payload that requests the Fast service tier. */
 export function withFastServiceTier(payload: unknown): unknown {
 	if (!payload || typeof payload !== "object") return payload;
 	return {
