@@ -43,9 +43,22 @@ Scoped models with a pinned thinking level (`provider/model:high` in `--models` 
 pi -e /path/to/pi-packages/packages/pi-auto-model
 ```
 
+## Quick start
+
+After loading the extension, run:
+
+```text
+/automodel
+```
+
+If no config exists, this creates `~/.pi/agent/auto-model.json` with
+`{"version": 1, "enabled": true}` and displays a config-created confirmation.
+Run `/automodel` again to toggle routing off or on; the change is persisted.
+The config path respects `PI_CODING_AGENT_DIR`.
+
 ## Configure
 
-Create `~/.pi/agent/auto-model.json`:
+For custom classifier settings and routing hints, edit `~/.pi/agent/auto-model.json`:
 
 ```json
 {
@@ -69,14 +82,13 @@ Create `~/.pi/agent/auto-model.json`:
   shown to the classifier next to each candidate, after the objective catalogue facts
   (reasoning, input types, context window, price).
 
-Routing is off until the config exists.
+Routing is off until the config exists. Run `/automodel` to create it and enable routing.
 
 ## Commands
 
 ```text
+/automodel          Toggle routing (persisted); create an enabled config if missing
 /automodel status   Show config, current scope, and pending suggestion
-/automodel on       Enable routing (persisted)
-/automodel off      Disable routing (persisted)
 /automodel accept   Accept the pending suggestion: switch model for future prompts
 /automodel dismiss  Drop the pending suggestion
 ```

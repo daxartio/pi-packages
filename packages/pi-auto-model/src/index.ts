@@ -1,17 +1,21 @@
 import type { Api, Model } from "@earendil-works/pi-ai";
-import { getAgentDir, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 import {
-	classifyPrompt,
+	type ExtensionAPI,
+	type ExtensionContext,
+	getAgentDir,
+} from "@earendil-works/pi-coding-agent";
+import {
 	type CandidateFacts,
 	type CandidateModel,
 	type Classification,
+	classifyPrompt,
 } from "./classifier.ts";
 import {
+	type AutoModelConfig,
 	getConfigPath,
 	loadConfig,
-	saveConfig,
-	type AutoModelConfig,
 	type ThinkingLevel,
+	toggleConfig,
 } from "./config.ts";
 import {
 	formatCandidate,
@@ -21,7 +25,9 @@ import {
 } from "./router.ts";
 
 const STATUS_KEY = "auto-model";
-const ACCEPT_SHORTCUT = "ctrl+alt+a" as Parameters<ExtensionAPI["registerShortcut"]>[0];
+const ACCEPT_SHORTCUT = "ctrl+alt+a" as Parameters<
+	ExtensionAPI["registerShortcut"]
+>[0];
 const MAX_ERROR_LENGTH = 300;
 /** The offer dialog auto-dismisses after this long; the pending offer itself never expires. */
 const OFFER_DIALOG_TIMEOUT_MS = 2 * 60 * 1000;
@@ -36,10 +42,15 @@ interface PendingOffer {
 
 function conciseError(value: unknown): string {
 	const message = value instanceof Error ? value.message : String(value);
-	return message.length <= MAX_ERROR_LENGTH ? message : `${message.slice(0, MAX_ERROR_LENGTH)}…`;
+	return message.length <= MAX_ERROR_LENGTH
+		? message
+		: `${message.slice(0, MAX_ERROR_LENGTH)}…`;
 }
 
-function thinkingCapSupported(model: Model<Api>, level: ThinkingLevel): boolean {
+function thinkingCapSupported(
+	model: Model<Api>,
+	level: ThinkingLevel,
+): boolean {
 	if (level === "off") return true;
 	if (!model.reasoning) return false;
 	return model.thinkingLevelMap?.[level] !== null;
@@ -68,9 +79,14 @@ export default function autoModel(pi: ExtensionAPI): void {
 		pending = undefined;
 	};
 
-	const pickThinkingLevel = (model: Model<Api>, classification: Classification): ThinkingLevel => {
+	const pickThinkingLevel = (
+		model: Model<Api>,
+		classification: Classification,
+	): ThinkingLevel => {
 		const wanted = classification.thinkingLevel ?? defaultThinkingFor(model);
-		return thinkingCapSupported(model, wanted) ? wanted : defaultThinkingFor(model);
+		return thinkingCapSupported(model, wanted)
+			? wanted
+			: defaultThinkingFor(model);
 	};
 
 	/** Switch to the candidate, restoring the previous model when activation fails. */
@@ -93,28 +109,42 @@ export default function autoModel(pi: ExtensionAPI): void {
 			switched = false;
 		}
 		if (!switched) {
-			ctx.ui.notify(`Auto model: could not activate ${candidate.ref} (authentication?).`, "error");
+			ctx.ui.notify(
+				`Auto model: could not activate ${candidate.ref} (authentication?).`,
+				"error",
+			);
 			return false;
 		}
 		const current = ctx.model;
 		if (!current || modelKey(current) !== candidate.ref) {
 			const restore = available.find((model) => modelKey(model) === restoreRef);
 			if (restore) await pi.setModel(restore).catch(() => false);
-			ctx.ui.notify("Auto model: switch did not stick, restored the previous model.", "warning");
+			ctx.ui.notify(
+				"Auto model: switch did not stick, restored the previous model.",
+				"warning",
+			);
 			return false;
 		}
 		if (thinkingLevel) pi.setThinkingLevel(thinkingLevel);
 		return true;
 	};
 
-	const acceptPending = async (ctx: ExtensionContext, remember: boolean): Promise<void> => {
+	const acceptPending = async (
+		ctx: ExtensionContext,
+		remember: boolean,
+	): Promise<void> => {
 		const offer = pending;
 		if (!offer) {
 			ctx.ui.notify("No pending auto-model suggestion.", "info");
 			return;
 		}
 		clearPending();
-		const switched = await applyCandidate(ctx, offer.candidate, offer.targetThinkingLevel, offer.currentRef);
+		const switched = await applyCandidate(
+			ctx,
+			offer.candidate,
+			offer.targetThinkingLevel,
+			offer.currentRef,
+		);
 		if (!switched) return;
 		if (remember) autoAccept.add(offer.candidate.ref);
 		ctx.ui.notify(
@@ -124,10 +154,18 @@ export default function autoModel(pi: ExtensionAPI): void {
 	};
 
 	/** Show the suggestion dialog without blocking the session: on timeout the offer stays pending. */
-	const offerPrompt = async (ctx: ExtensionContext, offer: PendingOffer): Promise<void> => {
-		const targetLabel = formatCandidate(offer.candidate, offer.targetThinkingLevel);
+	const offerPrompt = async (
+		ctx: ExtensionContext,
+		offer: PendingOffer,
+	): Promise<void> => {
+		const targetLabel = formatCandidate(
+			offer.candidate,
+			offer.targetThinkingLevel,
+		);
 		const currentLabel = `${offer.currentRef}:${offer.currentThinkingLevel}`;
-		const reason = offer.classification.reason ? `\nReason: ${offer.classification.reason}` : "";
+		const reason = offer.classification.reason
+			? `\nReason: ${offer.classification.reason}`
+			: "";
 		const choice = await ctx.ui.select(
 			`Auto model suggests ${targetLabel} (current: ${currentLabel})${reason}`,
 			[
@@ -160,21 +198,25 @@ export default function autoModel(pi: ExtensionAPI): void {
 		try {
 			const activeConfig = config;
 			const available = ctx.modelRegistry.getAvailable();
-			const candidates = selectableModels(available, ctx.scopedModels).map((candidate) => ({
-				...candidate,
-				hint: activeConfig.modelHints?.[candidate.ref],
-			}));
+			const candidates = selectableModels(available, ctx.scopedModels).map(
+				(candidate) => ({
+					...candidate,
+					hint: activeConfig.modelHints?.[candidate.ref],
+				}),
+			);
 			if (candidates.length < 2) return; // nothing to choose between
-			const candidateFacts: (CandidateFacts | undefined)[] = candidates.map((candidate) => {
-				const model = resolveCandidate(candidate, available);
-				if (!model) return undefined;
-				return {
-					reasoning: model.reasoning,
-					contextWindow: model.contextWindow,
-					input: model.input,
-					cost: { input: model.cost?.input, output: model.cost?.output },
-				};
-			});
+			const candidateFacts: (CandidateFacts | undefined)[] = candidates.map(
+				(candidate) => {
+					const model = resolveCandidate(candidate, available);
+					if (!model) return undefined;
+					return {
+						reasoning: model.reasoning,
+						contextWindow: model.contextWindow,
+						input: model.input,
+						cost: { input: model.cost?.input, output: model.cost?.output },
+					};
+				},
+			);
 
 			const classifierModel = ctx.model; // the chat's current model classifies its own prompt
 			if (!classifierModel) return;
@@ -184,7 +226,8 @@ export default function autoModel(pi: ExtensionAPI): void {
 			let classification: Classification;
 			try {
 				classification = await classifyPrompt(
-					(model, context, options) => ctx.modelRegistry.complete(model as Model<Api>, context, options),
+					(model, context, options) =>
+						ctx.modelRegistry.complete(model as Model<Api>, context, options),
 					{
 						model: classifierModel,
 						prompt,
@@ -194,7 +237,8 @@ export default function autoModel(pi: ExtensionAPI): void {
 						candidateFacts,
 						currentRef,
 						currentThinkingLevel: currentThinking,
-						classifierThinkingLevel: activeConfig.classifierThinkingLevel ?? "off",
+						classifierThinkingLevel:
+							activeConfig.classifierThinkingLevel ?? "off",
 						signal: ctx.signal,
 					},
 				);
@@ -210,7 +254,10 @@ export default function autoModel(pi: ExtensionAPI): void {
 			if (!candidate) return;
 			const target = resolveCandidate(candidate, available);
 			if (!target) {
-				ctx.ui.notify(`Auto model: suggested ${candidate.ref}, but it is unavailable.`, "warning");
+				ctx.ui.notify(
+					`Auto model: suggested ${candidate.ref}, but it is unavailable.`,
+					"warning",
+				);
 				return;
 			}
 			const targetThinking = pickThinkingLevel(target, classification);
@@ -218,7 +265,12 @@ export default function autoModel(pi: ExtensionAPI): void {
 			const sameThinking = String(targetThinking) === currentThinking;
 
 			if (!sameModel && autoAccept.has(candidate.ref)) {
-				const switched = await applyCandidate(ctx, candidate, targetThinking, currentRef ?? "");
+				const switched = await applyCandidate(
+					ctx,
+					candidate,
+					targetThinking,
+					currentRef ?? "",
+				);
 				if (switched) {
 					ctx.ui.notify(
 						`Auto model: switched to ${formatCandidate(candidate, targetThinking)} (remembered choice) — new requests will use it.`,
@@ -259,30 +311,30 @@ export default function autoModel(pi: ExtensionAPI): void {
 	});
 
 	pi.registerCommand("automodel", {
-		description: "Auto model routing: status and controls",
+		description: "Toggle auto model routing, or use status/accept/dismiss",
 		getArgumentCompletions: (prefix) =>
-			["status", "on", "off", "accept", "dismiss"]
+			["status", "accept", "dismiss"]
 				.filter((item) => item.startsWith(prefix))
 				.map((value) => ({ value, label: value })),
 		handler: async (args, ctx) => {
 			const command = args.trim().toLowerCase();
-			if (command === "on" || command === "off") {
-				if (!config) {
+			if (command === "") {
+				try {
+					const toggled = await toggleConfig(configPath);
+					config = toggled.config;
+					updateStatus(ctx);
 					ctx.ui.notify(
-						`Auto model is not configured. Create ${configPath} (see the package README).`,
+						toggled.created
+							? `Auto model config created at ${configPath}. Auto model enabled.`
+							: `Auto model ${config.enabled ? "enabled" : "disabled"}.`,
+						"info",
+					);
+				} catch (error: unknown) {
+					ctx.ui.notify(
+						`Could not toggle auto model: ${conciseError(error)}`,
 						"error",
 					);
-					return;
 				}
-				config = { ...config, enabled: command === "on" };
-				try {
-					await saveConfig(configPath, config);
-				} catch (error: unknown) {
-					ctx.ui.notify(`Could not save config: ${conciseError(error)}`, "error");
-					return;
-				}
-				updateStatus(ctx);
-				ctx.ui.notify(`Auto model ${config.enabled ? "enabled" : "disabled"}.`, "info");
 				return;
 			}
 			if (command === "accept") {
@@ -296,6 +348,13 @@ export default function autoModel(pi: ExtensionAPI): void {
 				} else {
 					ctx.ui.notify("No pending auto-model suggestion.", "info");
 				}
+				return;
+			}
+			if (command !== "status") {
+				ctx.ui.notify(
+					"Usage: /automodel [status|accept|dismiss] (no arguments toggles routing).",
+					"info",
+				);
 				return;
 			}
 			const current = ctx.model ? modelKey(ctx.model) : "none";
@@ -320,7 +379,7 @@ export default function autoModel(pi: ExtensionAPI): void {
 		if (loaded.warning) ctx.ui.notify(loaded.warning, "warning");
 		if (!config) {
 			ctx.ui.notify(
-				`pi-auto-model: no config at ${configPath}. Routing is off until you create it (see the package README).`,
+				`pi-auto-model: no config at ${configPath}. Run /automodel to create it and enable routing.`,
 				"info",
 			);
 		}
