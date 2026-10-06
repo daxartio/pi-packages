@@ -1,5 +1,5 @@
 /**
- * Enable GPT Fast mode (service_tier: priority) for supported models.
+ * Request Fast mode (service_tier: priority) without model restrictions.
  *
  * Usage:
  * /fast - toggle Fast mode on/off
@@ -13,27 +13,6 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
-const SUPPORTED_MODEL_IDS = [
-	"gpt-5.4",
-	"gpt-5.4-mini",
-	"gpt-5.5",
-	"gpt-5.6",
-	"gpt-5.6-sol",
-	"gpt-5.6-terra",
-	"gpt-5.6-luna",
-	"gpt-6-astra",
-	"gpt-6-sol",
-	"gpt-6-luna",
-	"gpt-6.1-sol",
-];
-
-export const SUPPORTED_MODELS = new Set(
-	["openai", "openai-codex", "github-copilot"].flatMap((provider) =>
-		SUPPORTED_MODEL_IDS.map((id) => `${provider}/${id}`),
-	),
-);
-export const TARGET_PROVIDER = "openai-codex";
-export const TARGET_MODEL = "gpt-5.6";
 export const FAST_SERVICE_TIER = "priority";
 export const CONFIG_FIELD = "pi-gpt-fast-mode";
 export const KEYBINDING_FIELD = CONFIG_FIELD;
@@ -43,7 +22,6 @@ export const STATE_FILE_NAME = "pi-gpt-fast-mode.json";
 export const STATUS_KEY = "pi-gpt-fast-mode";
 export const STATUS_TEXT = "⚡ fast";
 
-type PiModel = { provider?: string; id?: string };
 type ProviderPayload = Record<string, unknown>;
 type PiConfig = Record<string, unknown>;
 type ReadTextFile = (path: string, encoding: "utf8") => string;
@@ -55,31 +33,10 @@ type PiFileLoadOptions = {
 	readFile?: ReadTextFile;
 };
 
-/**
- * True when this request is for a supported GPT model this extension knows how to speed up.
- * The payload check makes tests and future provider edge-cases less dependent on ctx.model.
- */
-export function modelKey(model: PiModel): string {
-	return `${model.provider}/${model.id}`;
-}
-
-export function isSupportedModel(model: PiModel | undefined): boolean {
-	if (!model?.provider || !model.id) return false;
-	return SUPPORTED_MODELS.has(modelKey(model));
-}
-
-export function shouldApplyFastMode(
-	model: PiModel | undefined,
-	payload: unknown,
-): boolean {
-	if (!payload || typeof payload !== "object") return false;
-	const requestModel = (payload as ProviderPayload).model;
-	return isSupportedModel(model) && requestModel === model?.id;
-}
-
 /** Return a patched provider payload that requests the Fast service tier. */
 export function withFastServiceTier(payload: unknown): unknown {
-	if (!payload || typeof payload !== "object") return payload;
+	if (!payload || typeof payload !== "object" || Array.isArray(payload))
+		return payload;
 	return {
 		...(payload as ProviderPayload),
 		service_tier: FAST_SERVICE_TIER,
@@ -250,16 +207,6 @@ export async function savePersistedEnabled(
 	}
 }
 
-function isSupportedModelContext(ctx: unknown): boolean {
-	const model = (ctx as { model?: PiModel } | undefined)?.model;
-	return isSupportedModel(model);
-}
-
-function currentModelLabel(ctx: unknown): string {
-	const model = (ctx as { model?: PiModel } | undefined)?.model;
-	return model?.provider && model.id ? modelKey(model) : "unknown model";
-}
-
 function notify(
 	ctx: unknown,
 	message: string,
@@ -279,34 +226,19 @@ function announceState(ctx: unknown, enabled: boolean): void {
 		return;
 	}
 
-	if (isSupportedModelContext(ctx)) {
-		notify(ctx, `GPT Fast mode enabled (service_tier: ${FAST_SERVICE_TIER}).`);
-		return;
-	}
-
-	notify(
-		ctx,
-		`GPT Fast mode enabled, but ${currentModelLabel(ctx)} is not supported.`,
-		"warning",
-	);
+	notify(ctx, `GPT Fast mode enabled (service_tier: ${FAST_SERVICE_TIER}).`);
 }
 
-function updateStatus(
-	ctx: unknown,
-	enabled: boolean,
-	selectedModel?: PiModel,
-): void {
+function updateStatus(ctx: unknown, enabled: boolean): void {
 	const context = ctx as
 		| {
-				model?: PiModel;
 				ui?: {
 					setStatus?: (key: string, value: string | undefined) => void;
 					theme?: { fg?: (color: string, text: string) => string };
 				};
 		  }
 		| undefined;
-	const visible = enabled && isSupportedModel(selectedModel ?? context?.model);
-	const text = visible
+	const text = enabled
 		? (context?.ui?.theme?.fg?.("accent", STATUS_TEXT) ?? STATUS_TEXT)
 		: undefined;
 	context?.ui?.setStatus?.(STATUS_KEY, text);
@@ -314,6 +246,7 @@ function updateStatus(
 
 export default function fastModeExtension(pi: ExtensionAPI): void {
 	let enabled = loadEnabled();
+	let patchedRequest = false;
 
 	async function toggle(ctx: unknown): Promise<void> {
 		const nextEnabled = !enabled;
@@ -351,16 +284,36 @@ export default function fastModeExtension(pi: ExtensionAPI): void {
 
 	pi.on("session_start", (_event, ctx) => {
 		enabled = loadEnabled();
+		patchedRequest = false;
 		updateStatus(ctx, enabled);
 	});
 
-	pi.on("model_select", (event, ctx) => {
-		updateStatus(ctx, enabled, event.model);
+	pi.on("before_provider_request", (event) => {
+		patchedRequest = false;
+		if (!enabled) return undefined;
+		const payload = withFastServiceTier(event.payload);
+		if (payload === event.payload) return undefined;
+		patchedRequest = true;
+		return payload;
 	});
 
-	pi.on("before_provider_request", (event, ctx) => {
-		if (!enabled) return undefined;
-		if (!shouldApplyFastMode(ctx.model, event.payload)) return undefined;
-		return withFastServiceTier(event.payload);
+	pi.on("message_end", (event) => {
+		if (event.message.role !== "assistant") return;
+		const wasPatched = patchedRequest;
+		patchedRequest = false;
+		const { message } = event;
+		if (
+			!wasPatched ||
+			message.stopReason !== "error" ||
+			!message.errorMessage ||
+			!/service[_ -]?tier|priority tier/i.test(message.errorMessage)
+		)
+			return;
+		return {
+			message: {
+				...message,
+				errorMessage: `Fast mode request failed (service_tier: ${FAST_SERVICE_TIER}). The API may not support this tier; disable /fast and retry.\n\n${message.errorMessage}`,
+			},
+		};
 	});
 }

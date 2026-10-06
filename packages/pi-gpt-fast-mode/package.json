@@ -1,17 +1,13 @@
 {
   "name": "pi-gpt-fast-mode",
   "version": "0.1.0",
-  "description": "A Pi extension that toggles supported GPT-5 and GPT-6 models into Fast mode with /fast (service tier 'priority').",
+  "description": "A Pi extension that toggles Fast mode with /fast by requesting service_tier 'priority', without model allowlists.",
   "type": "module",
   "module": "src/index.ts",
   "license": "MIT",
   "keywords": [
     "pi-package",
     "pi-extension",
-    "gpt-5.4",
-    "gpt-5.5",
-    "gpt-5.6",
-    "gpt-6",
     "codex",
     "fast-mode"
   ],

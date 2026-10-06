@@ -19,13 +19,12 @@ import fastModeExtension, {
 	resolveStatePath,
 	STATE_FILE_NAME,
 	STATUS_KEY,
-	SUPPORTED_MODELS,
 	savePersistedEnabled,
-	shouldApplyFastMode,
-	TARGET_MODEL,
-	TARGET_PROVIDER,
 	withFastServiceTier,
 } from "../src/index.ts";
+
+const TARGET_MODEL = "future-model";
+const TARGET_PROVIDER = "custom-provider";
 
 type MockCtx = ReturnType<typeof createCtx>;
 
@@ -110,91 +109,36 @@ afterEach(() => {
 	else process.env.XDG_CONFIG_HOME = previousXdg;
 });
 
-test("patches only supported GPT payloads", () => {
-	for (const provider of ["openai", "openai-codex", "github-copilot"]) {
-		expect(SUPPORTED_MODELS).toContain(`${provider}/gpt-6-astra`);
-		expect(SUPPORTED_MODELS).toContain(`${provider}/gpt-6.1-sol`);
-	}
-	for (const id of [
-		"gpt-5.4",
-		"gpt-5.4-mini",
-		"gpt-5.5",
-		"gpt-5.6-sol",
-		"gpt-5.6-terra",
-		"gpt-5.6-luna",
-		"gpt-6-sol",
-		"gpt-6-luna",
+test("patches payloads without a model allowlist or matching context", () => {
+	for (const payload of [
+		{ model: TARGET_MODEL, input: [] },
+		{ model: "provider-model-alias", service_tier: "auto" },
+		{ messages: [] },
+		{},
 	]) {
-		expect(SUPPORTED_MODELS).toContain(`github-copilot/${id}`);
+		const original = structuredClone(payload);
+		expect(withFastServiceTier(payload)).toEqual({
+			...payload,
+			service_tier: FAST_SERVICE_TIER,
+		});
+		expect(payload).toEqual(original);
 	}
-	expect(SUPPORTED_MODELS).toContain("openai/gpt-6-sol");
-	expect(SUPPORTED_MODELS).toContain("openai/gpt-6-luna");
-	expect(SUPPORTED_MODELS).toContain("openai-codex/gpt-6-sol");
-	expect(SUPPORTED_MODELS).toContain("openai-codex/gpt-6-luna");
+});
 
-	for (const key of SUPPORTED_MODELS) {
-		const [provider, id] = key.split("/");
-		expect(shouldApplyFastMode({ provider, id }, { model: id })).toBe(true);
+test("leaves non-object and array payloads untouched", () => {
+	for (const payload of [null, undefined, "model", 42, false, []]) {
+		expect(withFastServiceTier(payload)).toBe(payload);
 	}
-
-	expect(
-		shouldApplyFastMode(
-			{ provider: "openai", id: "gpt-5.4-nano" },
-			{ model: "gpt-5.4-nano" },
-		),
-	).toBe(false);
-	expect(
-		shouldApplyFastMode(
-			{ provider: "openai", id: "gpt-5.6-mars" },
-			{ model: "gpt-5.6-mars" },
-		),
-	).toBe(false);
-	expect(
-		shouldApplyFastMode(
-			{ provider: TARGET_PROVIDER, id: "gpt-5.6-sol" },
-			{ model: TARGET_MODEL },
-		),
-	).toBe(false);
-	expect(withFastServiceTier({ model: TARGET_MODEL, input: [] })).toEqual({
-		model: TARGET_MODEL,
-		input: [],
-		service_tier: FAST_SERVICE_TIER,
-	});
 });
 
 test.each([
-	"claude-opus-5.5",
-	"gemini-3.8-flash",
-	"gpt-5.4-nano",
-	"gpt-6-mars",
-])("does not patch unsupported Copilot model %s", (id) => {
-	expect(
-		shouldApplyFastMode({ provider: "github-copilot", id }, { model: id }),
-	).toBe(false);
-});
-
-test("rejects unsupported providers, missing models and mismatched payloads", () => {
-	expect(
-		shouldApplyFastMode(
-			{ provider: "openrouter", id: "gpt-6-astra" },
-			{ model: "gpt-6-astra" },
-		),
-	).toBe(false);
-	expect(shouldApplyFastMode(undefined, { model: "gpt-6-astra" })).toBe(false);
-	const model = { provider: "github-copilot", id: "gpt-6-astra" };
-	for (const payload of [
-		null,
-		undefined,
-		"gpt-6-astra",
-		{},
-		{ model: "gpt-6-sol" },
-	]) {
-		expect(shouldApplyFastMode(model, payload)).toBe(false);
-	}
-});
-
-test.each(["openai", "openai-codex", "github-copilot"])(
-	"toggles priority requests and status for %s/gpt-6-astra",
+	"openai",
+	"openai-codex",
+	"github-copilot",
+	"custom-provider",
+	"anthropic",
+])(
+	"toggles priority requests and status for any model through %s",
 	async (provider) => {
 		const tempDir = mkdtempSync(join(tmpdir(), "pi-gpt-fast-mode-provider-"));
 		try {
@@ -208,7 +152,7 @@ test.each(["openai", "openai-codex", "github-copilot"])(
 			fastModeExtension(
 				pi as unknown as Parameters<typeof fastModeExtension>[0],
 			);
-			const ctx = createCtx({ provider, id: "gpt-6-astra" });
+			const ctx = createCtx({ provider, id: TARGET_MODEL });
 			const hook = requireValue(
 				pi.handlers.get("before_provider_request"),
 				"request handler",
@@ -216,10 +160,6 @@ test.each(["openai", "openai-codex", "github-copilot"])(
 			const sessionStart = requireValue(
 				pi.handlers.get("session_start"),
 				"session handler",
-			);
-			const modelSelect = requireValue(
-				pi.handlers.get("model_select"),
-				"model handler",
 			);
 			const command = requireValue(pi.commands.get("fast"), "fast command");
 			const payload = { model: ctx.model.id, input: [], service_tier: "auto" };
@@ -246,19 +186,118 @@ test.each(["openai", "openai-codex", "github-copilot"])(
 				service_tier: FAST_SERVICE_TIER,
 			});
 
-			const unsupportedCtx = createCtx({ provider, id: "claude-opus-5.5" });
-			modelSelect({ model: unsupportedCtx.model }, ctx);
-			expect(ctx.statuses.has(STATUS_KEY)).toBe(false);
-			expect(
-				hook({ payload: { model: unsupportedCtx.model.id } }, unsupportedCtx),
-			).toBeUndefined();
-			modelSelect({ model: ctx.model }, ctx);
+			const otherCtx = createCtx({
+				provider: "another-provider",
+				id: "another-model",
+			});
+			expect(hook({ payload: { model: "request-alias" } }, otherCtx)).toEqual({
+				model: "request-alias",
+				service_tier: FAST_SERVICE_TIER,
+			});
+			expect(hook({ payload: { messages: [] } }, otherCtx)).toEqual({
+				messages: [],
+				service_tier: FAST_SERVICE_TIER,
+			});
+			for (const invalid of [null, undefined, [], "payload"]) {
+				expect(hook({ payload: invalid }, otherCtx)).toBeUndefined();
+			}
 			expect(ctx.statuses.get(STATUS_KEY)).toContain("fast");
 		} finally {
 			rmSync(tempDir, { recursive: true, force: true });
 		}
 	},
 );
+
+test("adds actionable context only to tier errors from patched requests", async () => {
+	const tempDir = mkdtempSync(join(tmpdir(), "pi-gpt-fast-mode-errors-"));
+	try {
+		process.env.PI_CODING_AGENT_DIR = tempDir;
+		delete process.env.XDG_CONFIG_HOME;
+		writeFileSync(
+			join(tempDir, "settings.json"),
+			JSON.stringify({ [CONFIG_FIELD]: { enabled: true } }),
+		);
+		const pi = createMockPi();
+		fastModeExtension(pi as unknown as Parameters<typeof fastModeExtension>[0]);
+		const ctx = createCtx();
+		const request = requireValue(
+			pi.handlers.get("before_provider_request"),
+			"request handler",
+		);
+		const messageEnd = requireValue(
+			pi.handlers.get("message_end"),
+			"message handler",
+		);
+		const sessionStart = requireValue(
+			pi.handlers.get("session_start"),
+			"session handler",
+		);
+		const command = requireValue(pi.commands.get("fast"), "fast command");
+		const tierError = {
+			role: "assistant",
+			stopReason: "error",
+			errorMessage: '400: unsupported parameter "service_tier"',
+			content: [],
+		};
+
+		for (const reason of [
+			tierError.errorMessage,
+			"Priority tier is not available for this account",
+			"Invalid service tier: priority",
+		]) {
+			request({ payload: {} }, ctx);
+			const message = { ...tierError, errorMessage: reason };
+			const original = structuredClone(message);
+			expect(messageEnd({ message }, ctx)).toEqual({
+				message: {
+					...message,
+					errorMessage: expect.stringContaining("disable /fast and retry"),
+				},
+			});
+			request({ payload: {} }, ctx);
+			expect(messageEnd({ message }, ctx)).toEqual({
+				message: { ...message, errorMessage: expect.stringContaining(reason) },
+			});
+			expect(message).toEqual(original);
+			expect(messageEnd({ message }, ctx)).toBeUndefined();
+		}
+
+		for (const message of [
+			{ ...tierError, errorMessage: "401: invalid API key" },
+			{ ...tierError, errorMessage: "network timeout" },
+			{ ...tierError, errorMessage: undefined },
+			{ ...tierError, stopReason: "stop" },
+			{ ...tierError, stopReason: "aborted" },
+		]) {
+			request({ payload: {} }, ctx);
+			expect(messageEnd({ message }, ctx)).toBeUndefined();
+			expect(messageEnd({ message: tierError }, ctx)).toBeUndefined();
+		}
+
+		request({ payload: {} }, ctx);
+		expect(
+			messageEnd({ message: { role: "toolResult" } }, ctx),
+		).toBeUndefined();
+		expect(messageEnd({ message: tierError }, ctx)).toBeDefined();
+
+		request({ payload: {} }, ctx);
+		request({ payload: null }, ctx);
+		expect(messageEnd({ message: tierError }, ctx)).toBeUndefined();
+
+		request({ payload: {} }, ctx);
+		sessionStart({}, ctx);
+		expect(messageEnd({ message: tierError }, ctx)).toBeUndefined();
+
+		request({ payload: {} }, ctx);
+		await command.handler("", ctx);
+		expect(messageEnd({ message: tierError }, ctx)).toBeDefined();
+		expect(request({ payload: {} }, ctx)).toBeUndefined();
+		expect(messageEnd({ message: tierError }, ctx)).toBeUndefined();
+		expect(loadPersistedEnabled()).toBe(false);
+	} finally {
+		rmSync(tempDir, { recursive: true, force: true });
+	}
+});
 
 test("normalizes shortcut settings", () => {
 	expect(normalizeShortcutSetting(undefined)).toEqual([DEFAULT_SHORTCUT]);
@@ -399,17 +438,13 @@ test("loads configured shortcuts and toggles persisted payload patching", async 
 		expect(pi.commands.has("fast")).toBe(true);
 		expect(pi.shortcuts.has("ctrl+alt+m")).toBe(true);
 		expect(pi.handlers.has("before_provider_request")).toBe(true);
-		expect(pi.handlers.has("model_select")).toBe(true);
+		expect(pi.handlers.has("message_end")).toBe(true);
 		expect(pi.handlers.has("session_start")).toBe(true);
 
 		const ctx = createCtx();
 		const payloadHook = requireValue(
 			pi.handlers.get("before_provider_request"),
 			"provider request handler",
-		);
-		const modelSelect = requireValue(
-			pi.handlers.get("model_select"),
-			"model select handler",
 		);
 		const sessionStart = requireValue(
 			pi.handlers.get("session_start"),
@@ -466,20 +501,20 @@ test("loads configured shortcuts and toggles persisted payload patching", async 
 			service_tier: FAST_SERVICE_TIER,
 		});
 
-		const unsupportedCtx = createCtx({
-			provider: "anthropic",
-			id: "claude-opus-4-8",
+		const otherCtx = createCtx({
+			provider: "another-provider",
+			id: "another-model",
 		});
-		modelSelect({ model: unsupportedCtx.model }, unsupportedCtx);
-		expect(unsupportedCtx.statuses.has(STATUS_KEY)).toBe(false);
-
 		await fastCommand.handler("", ctx);
-		await fastShortcut.handler(unsupportedCtx);
+		await fastShortcut.handler(otherCtx);
 		expect(
-			payloadHook({ payload: { model: "claude-opus-4-8" } }, unsupportedCtx),
-		).toBeUndefined();
-		expect(unsupportedCtx.notifications.at(-1)?.level).toBe("warning");
-		expect(unsupportedCtx.statuses.has(STATUS_KEY)).toBe(false);
+			payloadHook({ payload: { model: otherCtx.model.id } }, otherCtx),
+		).toEqual({
+			model: otherCtx.model.id,
+			service_tier: FAST_SERVICE_TIER,
+		});
+		expect(otherCtx.notifications.at(-1)?.level).toBe("info");
+		expect(otherCtx.statuses.get(STATUS_KEY)).toContain("fast");
 	} finally {
 		rmSync(tempDir, { recursive: true, force: true });
 	}

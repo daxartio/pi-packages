@@ -1,22 +1,14 @@
 # pi-gpt-fast-mode
 
-A Pi extension that requests Fast mode (`service_tier: "priority"`) for supported GPT models through `openai`, `openai-codex`, and `github-copilot`.
+A Pi extension that requests Fast mode by adding `service_tier: "priority"` to provider request payloads when enabled. There are no model or provider allowlists, so new models need no extension updates.
 
-## Supported models
-
-- `gpt-5.4`, `gpt-5.4-mini`
-- `gpt-5.5`, `gpt-5.6`
-- `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`
-- `gpt-6-astra`, `gpt-6-sol`, `gpt-6-luna`
-- `gpt-6.1-sol`
-
-The extension does not register models or grant access to them. Model availability and whether the priority tier is honored depend on the provider and your account. In particular, sending the parameter to GitHub Copilot does not guarantee faster responses. Non-GPT Copilot models are not modified.
+The extension does not register models or grant access to them. Whether the parameter is accepted or the priority tier is honored depends on the API and your account. Incompatible APIs may reject the request; the extension does not silently remove the flag or retry. Errors mentioning `service_tier` or the priority tier include a hint to disable `/fast` and retry, while preserving the original API error.
 
 ## Usage
 
 - `/fast` toggles Fast mode.
 - `ctrl+alt+m` toggles Fast mode by default.
-- `⚡ fast` appears in the status bar when Fast mode is enabled for a supported model.
+- `⚡ fast` appears in the status bar whenever Fast mode is enabled. It indicates that the flag is being requested, not that the API supports it.
 
 To enable Fast mode by default, add this to global Pi `settings.json`:
 
@@ -28,6 +20,6 @@ To enable Fast mode by default, add this to global Pi `settings.json`:
 }
 ```
 
-The same setting applies to GitHub Copilot; no separate provider configuration is needed. Explicit toggles are persisted in `pi-gpt-fast-mode.json` and take precedence over the default.
+The same setting applies to all providers; no separate provider configuration is needed. Explicit toggles are persisted in `pi-gpt-fast-mode.json` and take precedence over the default.
 
 To customize the shortcut, set `"pi-gpt-fast-mode": ["ctrl+alt+m"]` in global Pi `keybindings.json`. Use `false` or `null` to disable the shortcut.
