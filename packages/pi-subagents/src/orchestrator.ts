@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { validateDag } from "./dag.js";
 import { TaskScheduler } from "./scheduler.js";
+import { type InheritedTool, resolveChildTools } from "./tool-inheritance.js";
+import { BUILTIN_TOOLS, resolveTools } from "./tools.js";
 import type {
   AgentDefinition,
   ContextMode,
@@ -18,6 +20,9 @@ export interface ChildExecutor {
     taskId: string;
     task: string;
     agent: AgentDefinition;
+    tools: string[];
+    activeTools?: string[];
+    toolSources?: InheritedTool[];
     cwd: string;
     context: ContextMode;
     signal?: AbortSignal;
@@ -35,6 +40,8 @@ export class SubagentOrchestrator {
     private readonly planner: Planner,
     private readonly defaultCwd: string,
     private readonly scheduler = new TaskScheduler(),
+    private readonly parentTools: readonly string[] = BUILTIN_TOOLS,
+    private readonly parentToolSources: readonly InheritedTool[] = [],
   ) {}
 
   async run(request: RunRequest, signal?: AbortSignal): Promise<RunResult> {
@@ -85,7 +92,6 @@ export class SubagentOrchestrator {
         name: role.id,
         description: role.label,
         aliases: [],
-        tools: ["read", "grep", "find", "ls"],
         systemPrompt: `Do not delegate. Untrusted role brief:\n${role.roleBrief}`,
         fallbackModels: [],
         defaultContext: "fresh",
@@ -112,6 +118,7 @@ export class SubagentOrchestrator {
                 node.task,
                 objective.cwd,
                 objective.context,
+                objective.tools,
                 signal,
               )
             : { id: node.id, state: "blocked", text: "Blocked by dependency" },
@@ -138,6 +145,7 @@ export class SubagentOrchestrator {
       request.task,
       request.cwd,
       request.context,
+      request.tools,
       signal,
     );
   }
@@ -149,6 +157,7 @@ export class SubagentOrchestrator {
     task: string,
     cwd: string | undefined,
     requestedContext: ContextMode | undefined,
+    requestedTools: string[] | undefined,
     signal?: AbortSignal,
   ): Promise<TaskResult> {
     const agent = this.agents.get(agentName);
@@ -172,12 +181,33 @@ export class SubagentOrchestrator {
     }
 
     try {
+      const available = [
+        ...new Set([
+          ...this.parentTools,
+          ...this.parentToolSources
+            .filter(
+              (tool) =>
+                tool.exposure === "codemode" || tool.exposure === "deferred",
+            )
+            .map((tool) => tool.name),
+        ]),
+      ];
+      const tools = resolveTools(available, agent.tools, requestedTools);
+      const activeTools = requestedTools ?? agent.tools ?? this.parentTools;
+      const inherited = resolveChildTools(
+        tools,
+        activeTools,
+        this.parentToolSources,
+      );
       const text = await this.scheduler.run(runId, taskId, signal, () =>
         this.executor.run({
           runId,
           taskId,
           task,
           agent,
+          tools,
+          activeTools: inherited.activeTools,
+          toolSources: inherited.toolSources,
           cwd: cwd ?? this.defaultCwd,
           context,
           ...(signal ? { signal } : {}),

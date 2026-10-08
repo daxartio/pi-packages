@@ -1,15 +1,8 @@
-import { realpath, readdir, readFile } from "node:fs/promises";
-import { dirname, join, relative, resolve } from "node:path";
-import type { AgentDefinition, BuiltinToolName } from "./types.js";
-const tools = new Set<BuiltinToolName>([
-  "read",
-  "grep",
-  "find",
-  "ls",
-  "bash",
-  "edit",
-  "write",
-]);
+import { readdir, readFile, realpath } from "node:fs/promises";
+import { dirname, join, relative } from "node:path";
+import { isToolName } from "./tools.js";
+import type { AgentDefinition } from "./types.js";
+
 const roots = (cwd: string) => [
   {
     source: "builtin" as const,
@@ -72,16 +65,19 @@ export async function discoverAgents(input: {
       const name = String(meta.name ?? "").trim();
       if (!/^[a-z0-9][a-z0-9-]{0,63}$/u.test(name))
         throw new Error(`Invalid agent name: ${name}`);
-      const selectedTools = String(meta.tools ?? "read,grep,find,ls")
-        .split(",")
-        .map((v) => v.trim())
-        .filter(Boolean) as BuiltinToolName[];
-      if (selectedTools.some((tool) => !tools.has(tool)))
+      const selectedTools =
+        meta.tools === undefined
+          ? undefined
+          : String(meta.tools)
+              .split(",")
+              .map((v) => v.trim())
+              .filter(Boolean);
+      if (selectedTools && !selectedTools.every(isToolName))
         throw new Error(`Invalid agent tool: ${name}`);
       definitions.set(name, {
         name,
         description: String(meta.description ?? ""),
-        tools: selectedTools,
+        ...(selectedTools ? { tools: selectedTools } : {}),
         systemPrompt,
         aliases: String(meta.aliases ?? "")
           .split(",")
@@ -98,9 +94,7 @@ export async function discoverAgents(input: {
   }
   return [...definitions.values()];
 }
-export function formatAvailableAgents(
-  definitions: AgentDefinition[],
-): string {
+export function formatAvailableAgents(definitions: AgentDefinition[]): string {
   return [...definitions]
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(

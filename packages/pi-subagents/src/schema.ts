@@ -1,5 +1,14 @@
 import { type Static, Type } from "typebox";
+import { TOOL_NAME_PATTERN } from "./tools.js";
 import type { ExplicitTaskRequest, RunRequest, TaskRequest } from "./types.js";
+
+const ToolsParams = Type.Optional(
+  Type.Array(Type.String({ minLength: 1, pattern: TOOL_NAME_PATTERN }), {
+    uniqueItems: true,
+    description:
+      "Optional tool-name allowlist for this task, including extension and MCP tools. Omit to inherit the parent's active tools and codemode/deferred tools, subject to agent restrictions. Can only narrow permissions; [] disables all tools. Allowing bash or a gateway such as mcp grants that tool's own capabilities, not a sandbox.",
+  }),
+);
 
 const AGENT_DESCRIPTION =
   "Name (or alias) of the agent to run. Available agents are listed in the tool description. Prefer the most specific agent: scout (read-only investigation), reviewer (code review), researcher (technical research), system-designer (architecture/design), dependency-updater (dependency changes). Use `default` for general code-changing tasks that no specialized agent covers.";
@@ -10,6 +19,7 @@ const CONTEXT_DESCRIPTION =
 const CWD_DESCRIPTION =
   "Working directory for the subagent. Must be inside the current workspace unless explicitly approved.";
 const TaskParams = Type.Object({
+  tools: ToolsParams,
   agent: Type.String({ minLength: 1, description: AGENT_DESCRIPTION }),
   task: Type.String({
     minLength: 1,
@@ -26,6 +36,7 @@ const TaskParams = Type.Object({
 
 export const SubagentParams = Type.Object(
   {
+    tools: ToolsParams,
     agent: Type.Optional(
       Type.String({
         minLength: 1,
@@ -75,6 +86,7 @@ function task(input: SubagentInput): TaskRequest {
     task: input.task,
     ...(input.context ? { context: input.context } : {}),
     ...(input.cwd ? { cwd: input.cwd } : {}),
+    ...(input.tools !== undefined ? { tools: input.tools } : {}),
   };
 }
 function explicit(input: SubagentInput): ExplicitTaskRequest {

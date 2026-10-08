@@ -14,6 +14,7 @@ export type BuiltinToolName =
   | "find"
   | "ls"
   | "bash"
+  | "powershell"
   | "edit"
   | "write";
 export type ContextMode = "fresh" | "fork";
@@ -22,6 +23,7 @@ export interface TaskRequest {
   task: string;
   context?: ContextMode;
   cwd?: string;
+  tools?: string[];
 }
 export interface ExplicitTaskRequest extends TaskRequest {
   agent: string;
@@ -37,7 +39,7 @@ export interface AgentDefinition {
   description: string;
   model?: string;
   thinking?: string;
-  tools: BuiltinToolName[];
+  tools?: string[];
   systemPrompt: string;
   aliases: string[];
   fallbackModels: string[];

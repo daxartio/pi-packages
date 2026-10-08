@@ -1,9 +1,11 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { discoverAgents, formatAvailableAgents } from "./agents.js";
 import { RpcChildExecutor } from "./child-executor.js";
+import { ChildUIQueue } from "./child-ui-queue.js";
 import { type Planner, SubagentOrchestrator } from "./orchestrator.js";
 import { formatRunOutput } from "./output.js";
 import { parseRequest, SubagentParams } from "./schema.js";
+import { captureToolSources } from "./tool-inheritance.js";
 import type { DynamicPlanV1 } from "./types.js";
 import { authorizeRequestWorkspaces } from "./workspace.js";
 
@@ -22,9 +24,8 @@ const planner: Planner = {
     };
   },
 };
-const executor = new RpcChildExecutor();
 const BASE_TOOL_DESCRIPTION =
-  "Run a named isolated subagent, or omit agent for a bounded read-only workflow. Prefer a named agent when one matches the task. Use exactly one form: top-level agent/task for a single agent, tasks for parallel agents, or chain for sequential agents. If forms are mixed, tasks takes precedence over chain, and either array overrides the top-level single-task fields; ignored forms are not executed. Providing only task starts dynamic planning. Agents do not pin a model; they inherit the orchestrator-selected model, and each agent description includes a recommended model tier.";
+  "Run a named isolated subagent, or omit agent for a bounded dynamic workflow. Prefer a named agent when one matches the task. Use exactly one form: top-level agent/task for a single agent, tasks for parallel agents, or chain for sequential agents. If forms are mixed, tasks takes precedence over chain, and either array overrides the top-level single-task fields; ignored forms are not executed. Providing only task starts dynamic planning. Agents do not pin a model; they inherit the orchestrator-selected model, and each agent description includes a recommended model tier. Child agents inherit the parent's active tools, including extensions and MCP, plus codemode/deferred tools. Set tools per task to narrow access. Tool-name restrictions are not a sandbox: bash and MCP gateways retain their own capabilities.";
 const SECTION_KEY = "subagent_available_agents";
 
 async function loadAvailableAgents(cwd: string): Promise<string> {
@@ -39,6 +40,7 @@ async function loadAvailableAgents(cwd: string): Promise<string> {
 
 export default async function register(pi: ExtensionAPI): Promise<void> {
   const agents = await loadAvailableAgents(process.cwd());
+  const uiQueue = new ChildUIQueue();
 
   pi.on("before_agent_start", async (event) => {
     const current = await loadAvailableAgents(process.cwd());
@@ -70,9 +72,12 @@ export default async function register(pi: ExtensionAPI): Promise<void> {
         );
         const runtime = new SubagentOrchestrator(
           new Map(definitions.map((agent) => [agent.name, agent])),
-          executor,
+          new RpcChildExecutor(undefined, { ui: ctx.ui, uiQueue }),
           planner,
           ctx.cwd,
+          undefined,
+          pi.getActiveTools(),
+          captureToolSources(pi.getAllTools(), ctx.cwd),
         );
         const result = await runtime.run(request, signal);
         return {
