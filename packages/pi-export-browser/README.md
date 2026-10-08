@@ -12,11 +12,15 @@ That's it — the session is rendered with pi's own HTML exporter, written to
 `$TMPDIR/pi-session-<id>-<timestamp>.html`, and opened with the platform
 browser opener (`open` on macOS, `xdg-open` on Linux, `start` on Windows).
 
-The export includes everything the built-in `/export` includes:
+The export uses Pi's HTML renderer and includes:
 
-- the full effective system prompt (with the `<system-reminder>` tail pi appends);
+- the recorded system prompt of the selected branch, including dynamic sections such as `<model_context>`;
 - all currently active tool definitions (name, description, JSON schema);
 - the whole message tree of the current session branch, with stats and theme.
+
+The prompt is reconstructed from the session's system messages, applying section
+updates and removals. It survives completed runs, session reloads, and compaction.
+If the history has no recorded system messages, the current system prompt is used.
 
 Each invocation creates a new timestamped file, so exports never overwrite
 each other and nothing is written into the current working directory.
@@ -25,8 +29,8 @@ each other and nothing is written into the current working directory.
 
 Pi's built-in `/export` command is handled by the TUI before extension
 commands are dispatched, so an extension cannot replace it. `/browse` is the
-browser-opening counterpart: same HTML rendering, but a temp output path plus
-an automatic browser open.
+browser-opening counterpart: same HTML rendering, but with the recorded prompt,
+a temp output path, and an automatic browser open.
 
 ## Fallback renderer
 

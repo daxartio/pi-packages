@@ -1,0 +1,27 @@
+{
+  "name": "pi-model-context",
+  "version": "0.1.0",
+  "description": "Adds live scoped models, small model catalog previews, and codemode discovery instructions to Pi's context.",
+  "type": "module",
+  "module": "src/index.ts",
+  "license": "MIT",
+  "keywords": ["pi-package", "pi-extension", "scoped-models", "model-discovery"],
+  "pi": {
+    "extensions": ["./src/index.ts"]
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "bun test ./test",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": ">=1.1.0"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "1.1.0",
+    "@types/bun": "latest"
+  },
+  "files": ["src"]
+}

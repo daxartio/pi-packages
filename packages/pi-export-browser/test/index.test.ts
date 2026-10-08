@@ -8,9 +8,9 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type {
-	ExtensionAPI,
-	ExtensionCommandContext,
+import {
+	type ExtensionAPI,
+	SessionManager,
 } from "@earendil-works/pi-coding-agent";
 import {
 	buildOutputPath,
@@ -247,9 +247,12 @@ describe("buildExportState", () => {
 		} as unknown as ExtensionAPI;
 	}
 
-	const fakeCtx = {
-		getSystemPrompt: () => "effective system prompt",
-	} as ExtensionCommandContext;
+	function fakeCtx(sessionManager = SessionManager.inMemory()) {
+		return {
+			getSystemPrompt: () => "effective system prompt",
+			sessionManager,
+		};
+	}
 
 	test("takes the effective system prompt and active tools with schemas", () => {
 		const pi = fakePi([
@@ -265,7 +268,7 @@ describe("buildExportState", () => {
 				parameters: { type: "object" },
 			},
 		]);
-		const state = buildExportState(pi, fakeCtx);
+		const state = buildExportState(pi, fakeCtx());
 		expect(state.systemPrompt).toBe("effective system prompt");
 		expect(state.tools).toEqual([
 			{
@@ -287,10 +290,105 @@ describe("buildExportState", () => {
 			{ name: "write", description: "Write files" },
 		];
 		expect(
-			buildExportState(fakePi(tools, ["write"]), fakeCtx).tools?.map(
+			buildExportState(fakePi(tools, ["write"]), fakeCtx()).tools?.map(
 				(tool) => tool.name,
 			),
 		).toEqual(["write"]);
-		expect(buildExportState(fakePi(tools, []), fakeCtx).tools).toEqual([]);
+		expect(buildExportState(fakePi(tools, []), fakeCtx()).tools).toEqual([]);
+	});
+
+	test("exports dynamic sections from the recorded prompt after the run ends", () => {
+		const session = SessionManager.inMemory();
+		session.appendMessage({
+			role: "system",
+			content: "Recorded base prompt",
+			sections: {
+				model_context: "<model_context>current model</model_context>",
+			},
+			timestamp: 1,
+		});
+		session.appendMessage({ role: "user", content: "Hello", timestamp: 2 });
+		expect(buildExportState(fakePi([]), fakeCtx(session)).systemPrompt).toBe(
+			"Recorded base prompt\n\n<model_context>current model</model_context>",
+		);
+	});
+
+	test("replays section replacements and removals rather than concatenating snapshots", () => {
+		const session = SessionManager.inMemory();
+		session.appendMessage({
+			role: "system",
+			content: "Base prompt",
+			sections: {
+				model_context: "old model",
+				obsolete: "removed instructions",
+			},
+			timestamp: 1,
+		});
+		session.appendMessage({
+			role: "system",
+			content: "Additional instructions",
+			sections: { model_context: "new model", obsolete: null },
+			timestamp: 2,
+		});
+		expect(buildExportState(fakePi([]), fakeCtx(session)).systemPrompt).toBe(
+			"Base prompt\n\nAdditional instructions\n\nnew model",
+		);
+	});
+
+	test("uses the selected branch instead of the most recently appended prompt", () => {
+		const session = SessionManager.inMemory();
+		const root = session.appendMessage({
+			role: "system",
+			content: "Base prompt",
+			sections: { model_context: "original model" },
+			timestamp: 1,
+		});
+		session.appendMessage({
+			role: "system",
+			content: "",
+			sections: { model_context: "other branch model" },
+			timestamp: 2,
+		});
+		session.branch(root);
+		expect(buildExportState(fakePi([]), fakeCtx(session)).systemPrompt).toBe(
+			"Base prompt\n\noriginal model",
+		);
+	});
+
+	test("preserves system sections across compaction and restoration", () => {
+		const session = SessionManager.inMemory();
+		session.appendMessage({
+			role: "system",
+			content: "Base prompt",
+			sections: { model_context: "recorded model" },
+			timestamp: 1,
+		});
+		session.appendMessage({ role: "user", content: "Hello", timestamp: 2 });
+		session.appendCompaction("Conversation summary", null, 100);
+		const header = session.getHeader();
+		if (!header) throw new Error("Missing session header");
+		const restored = SessionManager.inMemory(undefined, undefined, [
+			header,
+			...session.getEntries(),
+		]);
+		expect(buildExportState(fakePi([]), fakeCtx(restored)).systemPrompt).toBe(
+			"Base prompt\n\nrecorded model",
+		);
+	});
+
+	test("falls back to the current prompt for legacy history without system messages", () => {
+		const session = SessionManager.inMemory();
+		session.appendMessage({ role: "user", content: "Hello", timestamp: 1 });
+		expect(buildExportState(fakePi([]), fakeCtx(session)).systemPrompt).toBe(
+			"effective system prompt",
+		);
+	});
+
+	test("preserves an explicitly empty recorded prompt without falling back", () => {
+		const session = SessionManager.inMemory();
+		session.appendMessage({ role: "system", content: "", timestamp: 1 });
+		expect(buildExportState(fakePi([]), fakeCtx(session)).systemPrompt).toBe(
+			"",
+		);
 	});
 });

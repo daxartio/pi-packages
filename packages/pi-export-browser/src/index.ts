@@ -5,28 +5,31 @@
  * Usage:
  * /browse    - export session HTML to $TMPDIR and open it in the browser
  *
- * The export includes the full effective system prompt and the available
- * tool definitions, same as the built-in /export. Note: pi's built-in
+ * The export includes the recorded system prompt and active tool definitions.
+ * Note: pi's built-in
  * /export is handled by the TUI before extension commands run, so it cannot
  * be overridden - /browse is the browser-opening counterpart.
  */
 
+import {
+	getCurrentSystemMessage,
+	getSystemMessageText,
+} from "@earendil-works/pi-ai";
 import type {
 	ExtensionAPI,
 	ExtensionCommandContext,
 } from "@earendil-works/pi-coding-agent";
 import { type ExportState, exportAndOpen } from "./export.js";
 
-/**
- * Reconstruct the AgentState slice the export template needs. The built-in
- * /export reads it from the live AgentSession; extensions use the public
- * API instead: ctx.getSystemPrompt() for the full effective prompt and
- * pi.getAllTools() filtered down to the currently active tools.
- */
+/** Replay recorded prompt sections; idle getSystemPrompt() omits per-run additions. */
 export function buildExportState(
 	pi: ExtensionAPI,
-	ctx: ExtensionCommandContext,
+	ctx: Pick<ExtensionCommandContext, "getSystemPrompt" | "sessionManager">,
 ): ExportState {
+	const systemMessages = ctx.sessionManager
+		.buildSessionProjection()
+		.messages.filter((message) => message.role === "system");
+	const recordedPrompt = getCurrentSystemMessage(systemMessages);
 	const activeNames = new Set(pi.getActiveTools());
 	const tools = pi
 		.getAllTools()
@@ -36,7 +39,12 @@ export function buildExportState(
 			description,
 			parameters,
 		}));
-	return { systemPrompt: ctx.getSystemPrompt(), tools };
+	return {
+		systemPrompt: recordedPrompt
+			? getSystemMessageText(recordedPrompt)
+			: ctx.getSystemPrompt(),
+		tools,
+	};
 }
 
 export default function exportBrowserExtension(pi: ExtensionAPI): void {
