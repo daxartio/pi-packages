@@ -13,7 +13,7 @@ A Bun/TypeScript monorepo with extensions for the [Pi coding agent](https://gith
 - [`pi-gpt-fast-mode`](packages/pi-gpt-fast-mode) — toggles supported GPT models into Fast mode.
 - [`pi-model-context`](packages/pi-model-context) — adds live scoped models, catalog previews, and codemode discovery instructions to the agent context.
 - [`pi-review`](packages/pi-review) — provides a standalone `/review` command.
-- [`pi-servo-fetch`](packages/pi-servo-fetch) — adds Servo-powered web rendering with local stateless extraction, URL discovery, JavaScript evaluation, screenshots, and isolated browser sessions through the official JavaScript SDK.
+- [`pi-servo-fetch`](packages/pi-servo-fetch) — adds stateless Servo-powered web rendering with local extraction, URL discovery, JavaScript evaluation, and screenshots through the official JavaScript SDK.
 - [`pi-subagents`](packages/pi-subagents) — runs bounded isolated subagent sessions.
 - [`pi-todo`](packages/pi-todo) — adds a persistent todo-list overlay.
 - [`pi-worktree`](packages/pi-worktree) — manages package-owned Git worktrees.

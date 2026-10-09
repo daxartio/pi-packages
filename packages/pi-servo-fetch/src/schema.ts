@@ -39,7 +39,7 @@ const ExtractionOptions = {
 	visibility: Type.Optional(
 		StringEnum(["moderate", "strict", "off"] as const, {
 			description:
-				"Stateless DOM visibility policy: moderate excludes hidden/display-none/visibility-hidden elements; strict also excludes transparent/zero-size elements; off disables filtering. Full-document HTML defaults off; other extraction defaults moderate. Sessions use upstream heuristics.",
+				"Stateless DOM visibility policy: moderate excludes hidden/display-none/visibility-hidden elements; strict also excludes transparent/zero-size elements; off disables filtering. Full-document HTML defaults off; other extraction defaults moderate.",
 		}),
 	),
 };
@@ -58,56 +58,6 @@ const Filters = {
 		}),
 	),
 };
-
-const SessionId = Type.String({
-	minLength: 36,
-	maxLength: 36,
-	pattern:
-		"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
-	description:
-		"Exact UUID returned by servo_fetch_session_open. Do not invent an ID, use a name, or pass 'none'. For requests without a session use servo_fetch instead.",
-});
-
-export const SessionOpenParams = Type.Object(
-	{
-		userAgent: Type.Optional(
-			Type.Union(
-				[
-					Type.String({
-						minLength: 1,
-						maxLength: 512,
-						pattern: "^[^\\r\\n]*$",
-					}),
-					Type.Null(),
-				],
-				{
-					description:
-						"Optional User-Agent fixed for the new session. Omit or pass null to use the SDK default.",
-				},
-			),
-		),
-	},
-	{ additionalProperties: false },
-);
-
-export const SessionListParams = Type.Object(
-	{},
-	{ additionalProperties: false },
-);
-
-export const SessionCloseParams = Type.Object(
-	{ sessionId: SessionId },
-	{ additionalProperties: false },
-);
-
-export const SessionFetchParams = Type.Object(
-	{
-		url: Url,
-		sessionId: SessionId,
-		...ExtractionOptions,
-	},
-	{ additionalProperties: false },
-);
 
 export const FetchParams = Type.Object(
 	{
@@ -160,7 +110,7 @@ export const EvaluateParams = Type.Object(
 			minLength: 1,
 			maxLength: 50000,
 			description:
-				"JavaScript expression evaluated in the rendered page. Each call loads the URL afresh; no persistent browser session.",
+				"JavaScript expression evaluated in the rendered page. Each call loads the URL afresh; DOM/JS context is not retained.",
 		}),
 		...RenderOptions,
 	},

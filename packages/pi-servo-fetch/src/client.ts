@@ -16,19 +16,12 @@ import {
 	FetchParams,
 	MapParams,
 	ScreenshotParams,
-	SessionCloseParams,
-	SessionFetchParams,
-	SessionListParams,
-	SessionOpenParams,
 } from "./schema.js";
-import { type BrowserSession, BrowserSessions } from "./sessions.js";
 
 export type ServoBackend = Pick<
 	typeof import("servo-fetch"),
 	"map" | "evaluate" | "screenshot" | "shutdown"
-> & {
-	Session: { open(options?: { userAgent?: string }): Promise<BrowserSession> };
-};
+>;
 export type BackendLoader = () => Promise<ServoBackend>;
 
 interface FetchedPage {
@@ -47,13 +40,6 @@ type BatchPage =
 			selectorIgnored?: boolean;
 	  }
 	| { url: string; ok: false; error: string };
-
-function requireSessionContent(value: string): void {
-	if (!value.trim())
-		throw new Error(
-			"Servo returned no extractable content in the browser session. The page or selected elements may be empty, not ready, or removed by extraction heuristics. Retry with another selector in the same session. servo_fetch_execute_js is stateless and cannot inspect this session; no stateless fallback was attempted.",
-		);
-}
 
 function validate<T extends TSchema>(schema: T, params: Static<T>): void {
 	if (!Value.Check(schema, params))
@@ -76,7 +62,7 @@ function validateUrl(value: string): void {
 }
 
 function options(
-	params: Pick<FetchOptions, "timeout" | "settle" | "selector" | "visibility">,
+	params: Pick<FetchOptions, "timeout" | "settle">,
 	signal?: AbortSignal,
 ): FetchOptions {
 	return { timeout: 30, settle: 0, ...params, signal };
@@ -84,7 +70,6 @@ function options(
 
 export class ServoClient {
 	private backend?: Promise<ServoBackend>;
-	private readonly sessions = new BrowserSessions();
 	private generation = 0;
 	private stopping?: Promise<void>;
 	private lifecycle = new AbortController();
@@ -132,57 +117,6 @@ export class ServoClient {
 		const result = await operation(backend);
 		this.assertActive(generation, signal);
 		return result;
-	}
-
-	async openSession(
-		params: Static<typeof SessionOpenParams> = {},
-		signal?: AbortSignal,
-	): Promise<AgentToolResult<OutputDetails>> {
-		validate(SessionOpenParams, params);
-		this.assertActive(this.generation, signal);
-		const sessionId = await this.sessions.open(async () => {
-			const backend = await this.getBackend(signal);
-			return backend.Session.open(
-				params.userAgent == null ? {} : { userAgent: params.userAgent },
-			);
-		}, signal);
-		return jsonResult({ sessionId });
-	}
-
-	async listSessions(
-		params: Static<typeof SessionListParams> = {},
-		signal?: AbortSignal,
-	): Promise<AgentToolResult<OutputDetails>> {
-		validate(SessionListParams, params);
-		this.assertActive(this.generation, signal);
-		return jsonResult({ sessions: this.sessions.list() });
-	}
-
-	async closeSession(
-		params: Static<typeof SessionCloseParams>,
-		signal?: AbortSignal,
-	): Promise<AgentToolResult<OutputDetails>> {
-		validate(SessionCloseParams, params);
-		this.assertActive(this.generation, signal);
-		await this.sessions.close(params.sessionId);
-		return jsonResult({ sessionId: params.sessionId, closed: true });
-	}
-
-	async sessionFetch(
-		params: Static<typeof SessionFetchParams>,
-		signal?: AbortSignal,
-	): Promise<AgentToolResult<OutputDetails>> {
-		validate(SessionFetchParams, params);
-		validateUrl(params.url);
-		this.assertActive(this.generation, signal);
-		const { url, sessionId, ...render } = params;
-		const value = await this.sessions.fetch(
-			sessionId,
-			url,
-			options(render, signal),
-		);
-		requireSessionContent(value);
-		return textResult(value);
 	}
 
 	async fetch(
@@ -352,10 +286,6 @@ export class ServoClient {
 	}
 
 	private async stop(pending?: Promise<ServoBackend>): Promise<void> {
-		try {
-			await this.sessions.clear();
-		} finally {
-			if (pending) (await pending).shutdown();
-		}
+		if (pending) (await pending).shutdown();
 	}
 }

@@ -62,11 +62,6 @@ function harness(
 		shutdown() {
 			calls.push({ name: "shutdown" });
 		},
-		Session: {
-			async open() {
-				throw new Error("Unexpected session open");
-			},
-		},
 		...overrides,
 	};
 	const client = new ServoClient(async () => {
@@ -90,7 +85,7 @@ function text(result: Awaited<ReturnType<ServoClient["fetch"]>>): string {
 	return content.text;
 }
 
-test("registration exposes nine focused tools and does not load the SDK", () => {
+test("registration exposes five stateless tools and does not load the SDK", () => {
 	const names: string[] = [];
 	const events: string[] = [];
 	const runtime = harness();
@@ -108,10 +103,6 @@ test("registration exposes nine focused tools and does not load the SDK", () => 
 	);
 	expect(names).toEqual([
 		"servo_fetch",
-		"servo_fetch_session_open",
-		"servo_fetch_session_fetch",
-		"servo_fetch_session_list",
-		"servo_fetch_session_close",
 		"servo_fetch_batch_fetch",
 		"servo_fetch_map",
 		"servo_fetch_execute_js",
@@ -128,7 +119,6 @@ test("registration exposes nine focused tools and does not load the SDK", () => 
 test("all four HTML formats use evaluate once and expose no retired SDK functions", async () => {
 	const runtime = harness();
 	expect(Object.keys(runtime.backend).sort()).toEqual([
-		"Session",
 		"evaluate",
 		"map",
 		"screenshot",
@@ -388,69 +378,6 @@ test("batch preserves snapshot errors per URL without fallback", async () => {
 		]);
 		expect(requests).toEqual([url, `${url}/ok`]);
 		await runtime.client.shutdown();
-	}
-});
-
-test("session empty strings fail actionably, including selectors, without stateless fallback", async () => {
-	for (const output of ["", " \n\t "]) {
-		for (const selector of [undefined, "main.missing"]) {
-			const requests: Call[] = [];
-			let closed = 0;
-			const runtime = harness({
-				Session: {
-					async open() {
-						return {
-							async fetch(target, options) {
-								requests.push({ name: "session.fetch", url: target, options });
-								return output;
-							},
-							async close() {
-								closed++;
-							},
-						};
-					},
-				},
-			});
-			const opened: unknown = JSON.parse(
-				text(await runtime.client.openSession()),
-			);
-			if (
-				typeof opened !== "object" ||
-				opened === null ||
-				!("sessionId" in opened) ||
-				typeof opened.sessionId !== "string"
-			)
-				throw new Error("Expected session ID");
-			try {
-				await expect(
-					runtime.client.sessionFetch({
-						url,
-						sessionId: opened.sessionId,
-						selector,
-						visibility: "off",
-					}),
-				).rejects.toThrow(
-					"servo_fetch_execute_js is stateless and cannot inspect this session; no stateless fallback was attempted.",
-				);
-				expect(requests).toEqual([
-					{
-						name: "session.fetch",
-						url,
-						options: {
-							timeout: 30,
-							settle: 0,
-							selector,
-							visibility: "off",
-							signal: expect.any(AbortSignal),
-						},
-					},
-				]);
-				expect(runtime.calls).toEqual([]);
-			} finally {
-				await runtime.client.shutdown();
-			}
-			expect(closed).toBe(1);
-		}
 	}
 });
 
@@ -818,6 +745,40 @@ test("shutdown is lazy, releases the loaded SDK, and permits restart", async () 
 	await runtime.client.fetch({ url });
 	expect(runtime.loads()).toBe(2);
 	await runtime.client.shutdown();
+});
+
+test("shutdown waits for a pending SDK load, rejects new work and suppresses stale rendering", async () => {
+	const runtime = harness();
+	const started = deferred();
+	const gate = deferred();
+	let loads = 0;
+	const client = new ServoClient(async () => {
+		loads++;
+		started.resolve();
+		await gate.promise;
+		return runtime.backend;
+	}, renderResource);
+	const request = client.fetch({ url }).catch((error: unknown) => error);
+	await started.promise;
+	try {
+		const stopping = client.shutdown();
+		expect(client.shutdown()).toBe(stopping);
+		await expect(client.fetch({ url })).rejects.toThrow(
+			"Servo client was reset",
+		);
+		gate.resolve();
+		await stopping;
+		expect(await request).toMatchObject({
+			message: "Servo client was reset; retry the request",
+		});
+		expect(runtime.calls).toEqual([{ name: "shutdown" }]);
+		expect(text(await client.fetch({ url }))).toBe(markdown);
+		expect(loads).toBe(2);
+	} finally {
+		gate.resolve();
+		await request;
+		await client.shutdown();
+	}
 });
 
 test("batch keeps complete per-page content and truncates only the combined output", async () => {

@@ -12,7 +12,7 @@ function text(result: Awaited<ReturnType<ServoClient["fetch"]>>): string {
 	return block.text;
 }
 
-test("official SDK renders pages, runs web tools, and isolates persistent browser sessions", {
+test("official SDK runs stateless web tools with local extraction and engine restart", {
 	skip: process.env.PI_SERVO_FETCH_E2E !== "1",
 	timeout: 90000,
 }, async () => {
@@ -22,33 +22,7 @@ test("official SDK renders pages, runs web tools, and isolates persistent browse
 		);
 	const server = createServer((request, response) => {
 		const origin = `http://${request.headers.host}`;
-		if (request.url?.startsWith("/state/")) {
-			const state =
-				request.url === "/state/set-alpha"
-					? "alpha"
-					: request.url === "/state/set-beta"
-						? "beta"
-						: undefined;
-			const cookieState = request.headers.cookie?.includes(
-				"fixture-state=alpha",
-			)
-				? "alpha"
-				: request.headers.cookie?.includes("fixture-state=beta")
-					? "beta"
-					: "empty";
-			response.writeHead(200, {
-				"content-type": "text/html; charset=utf-8",
-				...(state
-					? { "set-cookie": `fixture-state=${state}; Path=/; HttpOnly` }
-					: {}),
-			});
-			response.end(
-				`<!doctype html><html><head><title>Session fixture</title></head><body><article><h1>Session fixture</h1><p>${paragraph}</p><p>Cookie ${cookieState}.</p><p id="storage">Storage not read.</p></article><script>${state ? `localStorage.setItem('fixture-state', '${state}');` : ""}document.getElementById('storage').textContent = 'Storage ' + (localStorage.getItem('fixture-state') || 'empty') + '.';</script></body></html>`,
-			);
-		} else if (
-			request.url === "/overfiltered" ||
-			request.url === "/layout-static"
-		) {
+		if (request.url === "/overfiltered" || request.url === "/layout-static") {
 			response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
 			const position = request.url === "/overfiltered" ? "fixed" : "static";
 			response.end(
@@ -239,112 +213,11 @@ test("official SDK renders pages, runs web tools, and isolates persistent browse
 			[`${url}/`, `${url}/next`].sort(),
 		);
 
-		const firstSession = JSON.parse(
-			text(await client.openSession({ userAgent: "ServoFixture/1.0" })),
-		).sessionId;
-		const secondSession = JSON.parse(
-			text(await client.openSession({})),
-		).sessionId;
-		assert.equal(typeof firstSession, "string");
-		assert.equal(typeof secondSession, "string");
-		await client.sessionFetch({
-			url: `${url}/state/set-alpha`,
-			sessionId: firstSession,
-		});
-		const firstState = text(
-			await client.sessionFetch({
-				url: `${url}/state/read`,
-				sessionId: firstSession,
-			}),
-		);
-		assert.match(firstState, /Cookie alpha/);
-		assert.match(firstState, /Storage alpha/);
-		const secondEmpty = text(
-			await client.sessionFetch({
-				url: `${url}/state/read`,
-				sessionId: secondSession,
-			}),
-		);
-		assert.match(secondEmpty, /Cookie empty/);
-		assert.match(secondEmpty, /Storage empty/);
-		await client.sessionFetch({
-			url: `${url}/state/set-beta`,
-			sessionId: secondSession,
-		});
-		const secondState = text(
-			await client.sessionFetch({
-				url: `${url}/state/read`,
-				sessionId: secondSession,
-			}),
-		);
-		assert.match(secondState, /Cookie beta/);
-		assert.match(secondState, /Storage beta/);
-		const firstStillIsolated = text(
-			await client.sessionFetch({
-				url: `${url}/state/read`,
-				sessionId: firstSession,
-			}),
-		);
-		assert.match(firstStillIsolated, /Cookie alpha/);
-		assert.match(firstStillIsolated, /Storage alpha/);
-		await assert.rejects(
-			client.sessionFetch({
-				url: `${url}/overfiltered`,
-				sessionId: firstSession,
-				selector: "article",
-				visibility: "off",
-			}),
-			/no extractable content in the browser session/,
-		);
-		assert.match(
-			text(
-				await client.sessionFetch({
-					url: `${url}/layout-static`,
-					sessionId: firstSession,
-					selector: "article",
-					visibility: "off",
-				}),
-			),
-			/Preserved DOM article/,
-		);
-		const afterExtractionFailure = text(
-			await client.sessionFetch({
-				url: `${url}/state/read`,
-				sessionId: firstSession,
-			}),
-		);
-		assert.match(afterExtractionFailure, /Cookie alpha/);
-		assert.match(afterExtractionFailure, /Storage alpha/);
-
-		const statelessState = text(
-			await client.fetch({ url: `${url}/state/read` }),
-		);
-		assert.match(statelessState, /Cookie empty/);
-		assert.match(statelessState, /Storage empty/);
-		await client.closeSession({ sessionId: firstSession });
-		await assert.rejects(
-			client.sessionFetch({ url, sessionId: firstSession }),
-			/Unknown or closed/,
-		);
 		await client.shutdown();
-		assert.deepEqual(JSON.parse(text(await client.listSessions({}))), {
-			sessions: [],
-		});
-		await assert.rejects(
-			client.sessionFetch({ url, sessionId: secondSession }),
-			/Unknown or closed/,
+		assert.equal(
+			text(await client.fetch({ url, format: "text", selector: "#dynamic" })),
+			"Rendered by JavaScript",
 		);
-		const freshSession = JSON.parse(
-			text(await client.openSession({})),
-		).sessionId;
-		const freshState = text(
-			await client.sessionFetch({
-				url: `${url}/state/read`,
-				sessionId: freshSession,
-			}),
-		);
-		assert.match(freshState, /Cookie empty/);
-		assert.match(freshState, /Storage empty/);
 
 		const screenshot = await client.screenshot({ url });
 		const path = screenshot.details.screenshotPath;
