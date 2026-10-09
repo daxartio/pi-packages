@@ -1,0 +1,52 @@
+{
+	"name": "pi-servo-fetch",
+	"version": "0.1.0",
+	"description": "Servo-powered web tools for Pi through the official servo-fetch JavaScript SDK.",
+	"type": "module",
+	"module": "src/index.ts",
+	"license": "MIT",
+	"keywords": [
+		"pi-package",
+		"pi-extension",
+		"servo",
+		"web",
+		"scraping"
+	],
+	"pi": {
+		"extensions": [
+			"./src/index.ts"
+		]
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"engines": {
+		"node": ">=22.12.0"
+	},
+	"scripts": {
+		"test": "bun test ./test",
+		"test:e2e": "PI_SERVO_FETCH_E2E=1 node --import tsx --test test/e2e.test.ts",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@mozilla/readability": "0.6.0",
+		"html-to-text": "10.0.1",
+		"ipaddr.js": "2.5.0",
+		"linkedom": "0.18.13",
+		"node-html-markdown": "2.0.0",
+		"servo-fetch": "0.15.1"
+	},
+	"devDependencies": {
+		"@types/html-to-text": "9.0.4"
+	},
+	"peerDependencies": {
+		"@earendil-works/pi-ai": "*",
+		"@earendil-works/pi-coding-agent": "*",
+		"typebox": "*"
+	},
+	"files": [
+		"src",
+		"README.md",
+		"LICENSE"
+	]
+}
