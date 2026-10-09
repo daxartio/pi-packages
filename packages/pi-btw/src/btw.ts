@@ -1,7 +1,7 @@
 /**
  * pi-btw — /btw side-question slash command.
  *
- * Asks the same primary model a one-off side question using the cloned primary
+ * Runs a side chat with the same primary model using the cloned primary
  * conversation as context. Answer is rendered ephemerally in a bottom-slot
  * overlay (never enters main agent's messages). History persists per-session-file
  * via globalThis-keyed storage; process-scoped only (no disk persistence).
@@ -9,7 +9,12 @@
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import type { AssistantMessage, Message, StopReason, UserMessage } from "@earendil-works/pi-ai";
+import type {
+	AssistantMessage,
+	Message,
+	StopReason,
+	UserMessage,
+} from "@earendil-works/pi-ai";
 import {
 	convertToLlm,
 	type ExtensionAPI,
@@ -17,10 +22,23 @@ import {
 	type ExtensionContext,
 	type SessionEntry,
 } from "@earendil-works/pi-coding-agent";
-import { type CappedHistory, capHistory, type FitBranchResult, fitBranch } from "./btw-budget.js";
-import { assistantMessageText, type BtwTurn, userMessageText } from "./btw-messages.js";
+import {
+	type CappedHistory,
+	capHistory,
+	type FitBranchResult,
+	fitBranch,
+} from "./btw-budget.js";
+import {
+	assistantMessageText,
+	type BtwTurn,
+	userMessageText,
+} from "./btw-messages.js";
 import { showBtwOverlay } from "./btw-ui.js";
-import { getRuntimeCompleteSimple, loadCompleteSimple, loadIsContextOverflow } from "./pi-compat.js";
+import {
+	getRuntimeCompleteSimple,
+	loadCompleteSimple,
+	loadIsContextOverflow,
+} from "./pi-compat.js";
 
 // ---------------------------------------------------------------------------
 // Constants — flat named consts, grouped by concern (advisor pattern, b9428e9)
@@ -38,22 +56,28 @@ export const CROSS_SESSION_HINT_LIMIT = 10;
 
 // Messages (static)
 const MSG_REQUIRES_INTERACTIVE = "/btw requires interactive mode";
-const MSG_USAGE = "Usage: /btw <question>";
 const MSG_NO_MODEL = "/btw requires an active model";
 
 // Errors (static)
 const ERR_EMPTY_RESPONSE = "/btw returned no text content.";
 
 // Errors (parameterized)
-const errMisconfigured = (label: string, err: string) => `/btw model (${label}) is misconfigured: ${err}`;
-const errNoApiKey = (label: string) => `/btw model (${label}) has no API key available.`;
-const errCallFailed = (err: string | undefined) => `/btw call failed: ${err ?? "unknown error"}`;
+const errMisconfigured = (label: string, err: string) =>
+	`/btw model (${label}) is misconfigured: ${err}`;
+const errNoApiKey = (label: string) =>
+	`/btw model (${label}) has no API key available.`;
+const errCallFailed = (err: string | undefined) =>
+	`/btw call failed: ${err ?? "unknown error"}`;
 const errCallThrew = (msg: string) => `/btw call threw: ${msg}`;
 
 // Budget (context-budgeting) constants — defined in btw-budget.ts (the leaf budget
 // module; keeps the module cycle type-only at runtime), re-exported here so the
 // package surface is unchanged.
-export { BTW_CONTEXT_RESERVE, BTW_HISTORY_TOKEN_BUDGET, BTW_NO_ANCHOR_SAFETY_FACTOR } from "./btw-budget.js";
+export {
+	BTW_CONTEXT_RESERVE,
+	BTW_HISTORY_TOKEN_BUDGET,
+	BTW_NO_ANCHOR_SAFETY_FACTOR,
+} from "./btw-budget.js";
 // BtwTurn + the message-text extractors live in the cycle-break leaf
 // (btw-messages.ts); re-exported here for a stable package surface.
 // Import-then-re-export (not `export … from`) because btw.ts consumes all
@@ -71,7 +95,9 @@ interface BtwState {
 
 export function branchToMessages(branch: SessionEntry[]): Message[] {
 	const agentMessages = branch
-		.filter((e): e is SessionEntry & { type: "message" } => e.type === "message")
+		.filter(
+			(e): e is SessionEntry & { type: "message" } => e.type === "message",
+		)
 		.map((e) => e.message);
 	return convertToLlm(agentMessages);
 }
@@ -105,7 +131,10 @@ function getState(): BtwState {
 }
 
 function getSessionFile(ctx: ExtensionContext): string {
-	return ctx.sessionManager.getSessionFile() ?? `memory:${ctx.sessionManager.getSessionId()}`;
+	return (
+		ctx.sessionManager.getSessionFile() ??
+		`memory:${ctx.sessionManager.getSessionId()}`
+	);
 }
 
 function getSessionHistory(ctx: ExtensionContext): BtwTurn[] {
@@ -127,11 +156,16 @@ export function clearSessionHistory(ctx: ExtensionContext): void {
 	getState().histories.set(getSessionFile(ctx), []);
 }
 
-function getSnapshot(ctx: ExtensionContext): { messages: Message[]; entries: SessionEntry[] } | undefined {
+function getSnapshot(
+	ctx: ExtensionContext,
+): { messages: Message[]; entries: SessionEntry[] } | undefined {
 	return getState().snapshots.get(getSessionFile(ctx));
 }
 
-function setSnapshot(ctx: ExtensionContext, snapshot: { messages: Message[]; entries: SessionEntry[] }): void {
+function setSnapshot(
+	ctx: ExtensionContext,
+	snapshot: { messages: Message[]; entries: SessionEntry[] },
+): void {
 	getState().snapshots.set(getSessionFile(ctx), snapshot);
 }
 
@@ -144,12 +178,19 @@ function getCrossSessionHint(): string {
 	const allTurns: { q: string; ts: number }[] = [];
 	for (const turns of getState().histories.values()) {
 		for (const t of turns) {
-			allTurns.push({ q: userMessageText(t.userMessage), ts: t.userMessage.timestamp });
+			allTurns.push({
+				q: userMessageText(t.userMessage),
+				ts: t.userMessage.timestamp,
+			});
 		}
 	}
 	if (allTurns.length === 0) return "";
-	const recent = allTurns.sort((a, b) => a.ts - b.ts).slice(-CROSS_SESSION_HINT_LIMIT);
-	const lines = recent.map((t, i) => `${i + 1}. ${t.q.replace(/\s+/g, " ").slice(0, 200)}`);
+	const recent = allTurns
+		.sort((a, b) => a.ts - b.ts)
+		.slice(-CROSS_SESSION_HINT_LIMIT);
+	const lines = recent.map(
+		(t, i) => `${i + 1}. ${t.q.replace(/\s+/g, " ").slice(0, 200)}`,
+	);
 	return `\n\n## Recent /btw questions across sessions (oldest first)\n\n${lines.join("\n")}`;
 }
 
@@ -170,7 +211,10 @@ export type BtwExecResult =
 	| { kind: "error"; error: string; stopReason?: StopReason }
 	| { kind: "aborted"; stopReason: StopReason };
 
-function readBranchSnapshot(ctx: ExtensionContext): { messages: Message[]; entries: SessionEntry[] } {
+function readBranchSnapshot(ctx: ExtensionContext): {
+	messages: Message[];
+	entries: SessionEntry[];
+} {
 	const cached = getSnapshot(ctx);
 	if (cached) return cached;
 	// Cold start (no message_end fired yet) — fall back to a single live read.
@@ -197,7 +241,13 @@ export function buildBtwMessages(
 	const history = getSessionHistory(ctx);
 	const { messages, entries } = readBranchSnapshot(ctx);
 	const systemPrompt = buildSystemPrompt();
-	const fitInput = { entries, messages, model, systemPrompt, question: userMessage };
+	const fitInput = {
+		entries,
+		messages,
+		model,
+		systemPrompt,
+		question: userMessage,
+	};
 
 	let capped: CappedHistory;
 	let fit: FitBranchResult;
@@ -221,7 +271,11 @@ export function buildBtwMessages(
 		// Overflow retry: the sent request has already proven too large — take the
 		// capped history and trim/stub the branch straight to the halved budget.
 		capped = capHistory(history);
-		fit = fitBranch({ ...fitInput, admittedEstimate: capped.estimate, keepBudget });
+		fit = fitBranch({
+			...fitInput,
+			admittedEstimate: capped.estimate,
+			keepBudget,
+		});
 	}
 	const assembled: Message[] = [
 		...fit.messages,
@@ -283,18 +337,30 @@ export async function executeBtw(
 		// tokens, GitHub Copilot's OAuth-specific baseUrl. Do not pass the
 		// preflight key/headers to that path: explicit overrides would bypass
 		// that resolution.
-		const completeSimple = runtimeCompleteSimple ?? (await loadCompleteSimple());
+		const completeSimple =
+			runtimeCompleteSimple ?? (await loadCompleteSimple());
 		const requestOptions = runtimeCompleteSimple
 			? { signal: controller.signal } // own AbortController, NOT ctx.signal (Decision 8)
-			: { apiKey: auth.apiKey, headers: auth.headers, signal: controller.signal };
+			: {
+					apiKey: auth.apiKey,
+					headers: auth.headers,
+					signal: controller.signal,
+				};
 		const overflowFn = await loadIsContextOverflow();
 		let retried = false;
 		const callCompleteSimple = async (
 			built: BtwBuiltContext,
-		): Promise<{ kind: "aborted"; stopReason: StopReason } | { kind: "completed"; response: AssistantMessage }> => {
+		): Promise<
+			| { kind: "aborted"; stopReason: StopReason }
+			| { kind: "completed"; response: AssistantMessage }
+		> => {
 			const response = await completeSimple(
 				model,
-				{ systemPrompt: built.systemPrompt, messages: built.messages, tools: [] },
+				{
+					systemPrompt: built.systemPrompt,
+					messages: built.messages,
+					tools: [],
+				},
 				requestOptions,
 			);
 			if (response.stopReason === "aborted") {
@@ -314,7 +380,11 @@ export async function executeBtw(
 		// stopReason-based willRetry.
 		if (overflowFn && !retried && overflowFn(response, model.contextWindow)) {
 			retried = true;
-			built = buildBtwMessages(ctx, userMessage, Math.floor(built.keepBudget / 2));
+			built = buildBtwMessages(
+				ctx,
+				userMessage,
+				Math.floor(built.keepBudget / 2),
+			);
 			outcome = await callCompleteSimple(built);
 			if (outcome.kind === "aborted") return outcome;
 			response = outcome.response;
@@ -329,7 +399,11 @@ export async function executeBtw(
 
 		const answerText = assistantMessageText(response).trim();
 		if (!answerText) {
-			return { kind: "error", error: ERR_EMPTY_RESPONSE, stopReason: response.stopReason };
+			return {
+				kind: "error",
+				error: ERR_EMPTY_RESPONSE,
+				stopReason: response.stopReason,
+			};
 		}
 
 		return {
@@ -338,7 +412,8 @@ export async function executeBtw(
 			userMessage,
 			assistantMessage: response,
 			stopReason: response.stopReason,
-			trimmed: built.droppedTurns > 0 || built.branchWasTrimmed || built.stubbed,
+			trimmed:
+				built.droppedTurns > 0 || built.branchWasTrimmed || built.stubbed,
 		};
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
@@ -390,18 +465,17 @@ function isStaleCtxError(e: unknown): boolean {
 export function registerBtwCommand(pi: ExtensionAPI): void {
 	pi.registerCommand(BTW_COMMAND_NAME, {
 		description: "Ask a side question without polluting the main conversation",
-		handler: (args: string, ctx: ExtensionCommandContext) => handleBtwCommand(pi, args, ctx),
+		handler: (args: string, ctx: ExtensionCommandContext) =>
+			handleBtwCommand(args, ctx),
 	});
 }
 
-async function handleBtwCommand(_pi: ExtensionAPI, args: string, ctx: ExtensionCommandContext): Promise<void> {
+async function handleBtwCommand(
+	args: string,
+	ctx: ExtensionCommandContext,
+): Promise<void> {
 	if (!ctx.hasUI) {
 		ctx.ui.notify(MSG_REQUIRES_INTERACTIVE, "error");
-		return;
-	}
-	const question = args.trim();
-	if (!question) {
-		ctx.ui.notify(MSG_USAGE, "warning");
 		return;
 	}
 	if (!ctx.model) {
@@ -409,40 +483,12 @@ async function handleBtwCommand(_pi: ExtensionAPI, args: string, ctx: ExtensionC
 		return;
 	}
 
-	const controller = new AbortController();
-	const historySnapshot = [...getSessionHistory(ctx)];
-
-	const { overlayPromise, controllerReady } = showBtwOverlay({
+	await showBtwOverlay({
 		ctx,
-		question,
-		history: historySnapshot,
-		controller,
+		question: args.trim(),
+		history: getSessionHistory(ctx),
+		onSubmit: (question, controller) => executeBtw(question, ctx, controller),
+		onTurn: (turn) => pushSessionTurn(ctx, turn),
 		onClearHistory: () => clearSessionHistory(ctx),
 	});
-
-	const overlayCtl = await controllerReady;
-	const result = await executeBtw(question, ctx, controller);
-
-	switch (result.kind) {
-		case "success": {
-			overlayCtl.setAnswer(result.answer);
-			if (result.trimmed) overlayCtl.setTrimmed(); // success-only: TS narrows result here
-			pushSessionTurn(ctx, {
-				userMessage: result.userMessage,
-				assistantMessage: result.assistantMessage,
-			});
-			// No disk persistence — process-scoped only (Decision 4)
-			break;
-		}
-		case "aborted": {
-			// User Esc'd — overlay already dismissed via done(); no further action
-			break;
-		}
-		case "error": {
-			overlayCtl.setError(result.error);
-			break;
-		}
-	}
-
-	await overlayPromise;
 }
