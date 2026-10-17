@@ -69,6 +69,13 @@
         "@earendil-works/pi-tui": "*",
       },
     },
+    "packages/pi-dynamic-skills": {
+      "name": "pi-dynamic-skills",
+      "version": "0.1.0",
+      "peerDependencies": {
+        "@earendil-works/pi-coding-agent": ">=0.87.1",
+      },
+    },
     "packages/pi-export-browser": {
       "name": "pi-export-browser",
       "version": "0.1.0",
@@ -534,6 +541,8 @@
     "pi-codex-goal": ["pi-codex-goal@workspace:packages/pi-codex-goal"],
 
     "pi-context": ["pi-context@workspace:packages/pi-context"],
+
+    "pi-dynamic-skills": ["pi-dynamic-skills@workspace:packages/pi-dynamic-skills"],
 
     "pi-export-browser": ["pi-export-browser@workspace:packages/pi-export-browser"],
 

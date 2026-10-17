@@ -9,6 +9,7 @@ A Bun/TypeScript monorepo with extensions for the [Pi coding agent](https://gith
 - [`pi-btw`](packages/pi-btw) — answers side questions with the current model without changing the main conversation.
 - [`pi-codex-goal`](packages/pi-codex-goal) — adds Codex-style goal tracking and continuation.
 - [`pi-context`](packages/pi-context) — assembles the system prompt from context files and skills with per-session controls.
+- [`pi-dynamic-skills`](packages/pi-dynamic-skills) — filters skills using declarative environment rules in their compatibility field; respects pi-context exclusions.
 - [`pi-export-browser`](packages/pi-export-browser) — exports the current session to HTML and opens it in a browser.
 - [`pi-gpt-fast-mode`](packages/pi-gpt-fast-mode) — toggles supported GPT models into Fast mode.
 - [`pi-model-context`](packages/pi-model-context) — adds live scoped models, catalog previews, and codemode discovery instructions to the agent context.
