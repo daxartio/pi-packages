@@ -1,4 +1,7 @@
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type {
+	ExtensionAPI,
+	ExtensionContext,
+} from "@earendil-works/pi-coding-agent";
 
 const STATUS_KEY = "pi-auto-update";
 const UPDATE_TIMEOUT_MS = 15 * 60 * 1000;
@@ -12,7 +15,10 @@ const UPDATE_STEPS: { label: string; args: string[] }[] = [
  * npm and pnpm install Windows CLI entrypoints as .cmd shims. Pi's exec API
  * deliberately uses shell:false, so resolve those shims through cmd.exe.
  */
-function getPiCommandInvocation(args: string[]): { command: string; args: string[] } {
+function getPiCommandInvocation(args: string[]): {
+	command: string;
+	args: string[];
+} {
 	if (process.platform !== "win32") return { command: "pi", args };
 
 	const cmd = process.env.ComSpec ?? process.env.COMSPEC ?? "cmd.exe";
@@ -66,10 +72,13 @@ export default function (pi: ExtensionAPI) {
 
 						if (result.code !== 0) {
 							const detail = lastOutputLine(result.stdout, result.stderr);
-							failures.push(`${step.label}: exit ${result.code}${detail ? ` — ${detail}` : ""}`);
+							failures.push(
+								`${step.label}: exit ${result.code}${detail ? ` — ${detail}` : ""}`,
+							);
 						}
 					} catch (error) {
-						const message = error instanceof Error ? error.message : String(error);
+						const message =
+							error instanceof Error ? error.message : String(error);
 						failures.push(`${step.label}: ${message.slice(0, 300)}`);
 					}
 				}
@@ -80,7 +89,10 @@ export default function (pi: ExtensionAPI) {
 			if (!ctx.hasUI) return;
 
 			if (failures.length > 0) {
-				ctx.ui.notify(`Pi auto-update failed\n${failures.join("\n")}`, "warning");
+				ctx.ui.notify(
+					`Pi auto-update failed\n${failures.join("\n")}`,
+					"warning",
+				);
 			} else {
 				ctx.ui.notify("Pi extensions and Pi update checks completed", "info");
 			}
@@ -91,22 +103,34 @@ export default function (pi: ExtensionAPI) {
 		return inFlight;
 	}
 
-	pi.on("session_start", async (event, ctx) => {
+	function startUpdates(ctx: ExtensionContext): void {
+		void runUpdates(ctx).catch((error: unknown) => {
+			if (!ctx.hasUI) return;
+			const message = error instanceof Error ? error.message : String(error);
+			ctx.ui.notify(
+				`Pi auto-update failed: ${message.slice(0, 300)}`,
+				"warning",
+			);
+		});
+	}
+
+	pi.on("session_start", (event, ctx) => {
 		if (event.reason !== "startup") return;
 
 		const skipReason = shouldSkipAutoUpdate();
 		if (skipReason) {
-			if (ctx.hasUI) ctx.ui.notify(`Pi auto-update skipped: ${skipReason}`, "info");
+			if (ctx.hasUI)
+				ctx.ui.notify(`Pi auto-update skipped: ${skipReason}`, "info");
 			return;
 		}
 
-		await runUpdates(ctx);
+		startUpdates(ctx);
 	});
 
 	pi.registerCommand("auto-update-now", {
 		description: "Run pi update --extensions, then pi update",
 		handler: async (_args, ctx) => {
-			await runUpdates(ctx);
+			startUpdates(ctx);
 		},
 	});
 }

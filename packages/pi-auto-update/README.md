@@ -4,8 +4,9 @@
 
 Automatically update [Pi Agent](https://github.com/badlogic/pi-mono) when a
 session starts. `pi-auto-update` runs `pi update --extensions` followed by
-`pi update` on every startup, showing progress in the status bar and a
-notification when finished.
+`pi update` in the background on every startup, showing progress in the status
+bar and a notification when finished. Startup does not wait for updates: slash
+commands and Tab completion remain available.
 
 Based on [eiei114/pi-auto-update](https://github.com/eiei114/pi-auto-update),
 trimmed to the essentials.
@@ -26,6 +27,9 @@ an update manually:
 ```
 /auto-update-now
 ```
+
+Manual updates also run in the background. If an update is already running,
+this command reuses it instead of starting another one.
 
 | Environment variable | Effect |
 | --- | --- |
