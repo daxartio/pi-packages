@@ -1,6 +1,6 @@
 import type { Api, Model } from "@earendil-works/pi-ai";
-import type { ThinkingLevel } from "./config.ts";
 import type { CandidateModel } from "./classifier.ts";
+import type { ThinkingLevel } from "./config.ts";
 
 export const ROUTE_ENTRY_TYPE = "auto-model-route";
 
@@ -41,11 +41,15 @@ export function resolveCandidate(
 	available: readonly Model<Api>[],
 ): Model<Api> | undefined {
 	return available.find(
-		(model) => model.provider === candidate.provider && model.id === candidate.model,
+		(model) =>
+			model.provider === candidate.provider && model.id === candidate.model,
 	);
 }
 
-export function formatCandidate(candidate: CandidateModel, thinkingLevel?: ThinkingLevel): string {
+export function formatCandidate(
+	candidate: CandidateModel,
+	thinkingLevel?: ThinkingLevel,
+): string {
 	const thinking = candidate.scopedThinkingLevel ?? thinkingLevel;
 	return thinking ? `${candidate.ref}:${thinking}` : candidate.ref;
 }

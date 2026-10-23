@@ -1,6 +1,9 @@
 /** Registers the `todo` tool, `/todos` command, and persistent TodoOverlay widget. */
 
-import type { ExtensionAPI, ExtensionUIContext } from "@earendil-works/pi-coding-agent";
+import type {
+	ExtensionAPI,
+	ExtensionUIContext,
+} from "@earendil-works/pi-coding-agent";
 import type { KeyId } from "@earendil-works/pi-tui";
 import { COLLAPSE_KEY_OFF, resolveCollapseKey } from "./config.js";
 import { replayFromBranch } from "./state/replay.js";
@@ -63,7 +66,9 @@ export function makeTodoOverlayLoader(
 			// Re-importing would hand back the same cached jiti namespace — a
 			// retry can never heal this; only the restart the error asks for can.
 			const keys = JSON.stringify(Object.keys(mod));
-			throw new Error(`${STALE_OVERLAY_MESSAGE} (resolved namespace keys: ${keys})`);
+			throw new Error(
+				`${STALE_OVERLAY_MESSAGE} (resolved namespace keys: ${keys})`,
+			);
 		}
 		return mod;
 	};
@@ -85,7 +90,10 @@ function formatError(e: unknown): string {
 	return e instanceof Error ? e.message : String(e);
 }
 
-export default function (pi: ExtensionAPI, importOverlay: TodoOverlayImporter = () => import("./todo-overlay.js")) {
+export default function (
+	pi: ExtensionAPI,
+	importOverlay: TodoOverlayImporter = () => import("./todo-overlay.js"),
+) {
 	let todoOverlay: TodoOverlay | undefined;
 	const loadTodoOverlay = makeTodoOverlayLoader(importOverlay);
 	let uiCtx: ExtensionUIContext | undefined;
@@ -95,7 +103,9 @@ export default function (pi: ExtensionAPI, importOverlay: TodoOverlayImporter = 
 		resetCompletedDisplayState = false,
 		generation = lifecycleGeneration,
 	): Promise<void> {
-		const hasVisibleTasks = getRenderState().tasks.some((task) => task.status !== "deleted");
+		const hasVisibleTasks = getRenderState().tasks.some(
+			(task) => task.status !== "deleted",
+		);
 		if (!uiCtx || (!todoOverlay && !hasVisibleTasks)) return;
 
 		const { TodoOverlay } = await loadTodoOverlay();
@@ -232,7 +242,9 @@ export default function (pi: ExtensionAPI, importOverlay: TodoOverlayImporter = 
 			// stale-namespace error still propagates: it never self-heals, and the
 			// user needs its restart guidance.
 			if (isStaleOverlayModuleError(e)) throw e;
-			console.warn(`[pi-todo] overlay refresh failed (will retry on next update): ${formatError(e)}`);
+			console.warn(
+				`[pi-todo] overlay refresh failed (will retry on next update): ${formatError(e)}`,
+			);
 		}
 	});
 
@@ -241,7 +253,10 @@ export default function (pi: ExtensionAPI, importOverlay: TodoOverlayImporter = 
 	// deferred until a foreground session has visible tasks. A rejected pre-warm
 	// is intentionally swallowed after loadTodoOverlay clears its memo, allowing
 	// the first real update to retry. unref avoids holding an embedder open.
-	const prewarmTimer = setTimeout(() => void loadTodoOverlay().catch(() => undefined), PREWARM_DELAY_MS);
+	const prewarmTimer = setTimeout(
+		() => void loadTodoOverlay().catch(() => undefined),
+		PREWARM_DELAY_MS,
+	);
 	prewarmTimer.unref?.();
 
 	pi.on("agent_start", async () => {

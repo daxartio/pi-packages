@@ -26,7 +26,9 @@ let activeRenderSession = "";
  * `… ?? ""` so an unknown/empty session resolves to "" rather than undefined
  * (keeps the key a plain string for callers and the Phase 2 sid-gate).
  */
-export function sid(ctx: { sessionManager: { getSessionId(): string } }): string {
+export function sid(ctx: {
+	sessionManager: { getSessionId(): string };
+}): string {
 	return ctx.sessionManager.getSessionId() ?? "";
 }
 

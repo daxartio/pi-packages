@@ -236,8 +236,8 @@ export function buildBtwMessages(
 	userMessage: UserMessage,
 	keepBudget?: number,
 ): BtwBuiltContext {
-	// ctx.model is non-null here — executeBtw returns early on !model before calling.
-	const model = ctx.model!;
+	const model = ctx.model;
+	if (!model) throw new Error("A model is required to build BTW messages");
 	const history = getSessionHistory(ctx);
 	const { messages, entries } = readBranchSnapshot(ctx);
 	const systemPrompt = buildSystemPrompt();

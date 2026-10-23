@@ -31,12 +31,17 @@ See each package README for package-specific setup.
 
 ## Development
 
+Requires Bun, Just, and Biome available on `PATH`. Project commands do not install tools.
+
 ```sh
 bun install
-bun run typecheck
+just format
+just check
 ```
 
-Run a package's own `test` script when it defines one.
+Run `just` to list commands. Use `just lint`, `just typecheck`, or `just test` for individual checks, and `just test-package pi-subagents` for a single workspace. Tests use each package's declared runner (Bun or Node). For a frozen dependency install, run `bun install --frozen-lockfile`. `just check` never rewrites source files.
+
+Biome uses its default settings without a project configuration file.
 
 ## License
 

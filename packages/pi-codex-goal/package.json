@@ -1,41 +1,41 @@
 {
-  "name": "pi-codex-goal",
-  "version": "0.2.0",
-  "description": "Codex-style goal tracking and continuation for Pi.",
-  "type": "module",
-  "module": "src/index.ts",
-  "license": "MIT",
-  "keywords": [
-    "pi-package",
-    "pi-extension",
-    "codex",
-    "goal"
-  ],
-  "pi": {
-    "extensions": [
-      "./src/index.ts"
-    ],
-    "prompts": [
-      "./prompts"
-    ]
-  },
-  "publishConfig": {
-    "access": "public"
-  },
-  "scripts": {
-    "test": "node --import tsx --test test/*.test.ts",
-    "typecheck": "tsc --noEmit"
-  },
-  "peerDependencies": {
-    "@earendil-works/pi-ai": "*",
-    "@earendil-works/pi-coding-agent": "*",
-    "typebox": "*"
-  },
-  "devDependencies": {
-    "tsx": "^4.22.3"
-  },
-  "files": [
-    "src",
-    "prompts"
-  ]
+	"name": "pi-codex-goal",
+	"version": "0.2.0",
+	"description": "Codex-style goal tracking and continuation for Pi.",
+	"type": "module",
+	"module": "src/index.ts",
+	"license": "MIT",
+	"keywords": [
+		"pi-package",
+		"pi-extension",
+		"codex",
+		"goal"
+	],
+	"pi": {
+		"extensions": [
+			"./src/index.ts"
+		],
+		"prompts": [
+			"./prompts"
+		]
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"scripts": {
+		"test": "node --import tsx --test test/*.test.ts",
+		"typecheck": "tsc --noEmit"
+	},
+	"peerDependencies": {
+		"@earendil-works/pi-ai": "*",
+		"@earendil-works/pi-coding-agent": "*",
+		"typebox": "*"
+	},
+	"devDependencies": {
+		"tsx": "^4.22.3"
+	},
+	"files": [
+		"src",
+		"prompts"
+	]
 }

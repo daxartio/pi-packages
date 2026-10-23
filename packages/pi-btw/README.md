@@ -41,12 +41,12 @@ reply arrives to send it — requests are not queued or run concurrently.
 `/btw` uses whatever model is already driving your session — there is nothing to
 pick, but Pi needs an active model with working credentials (`/login`).
 
-| Key | Action |
-| --- | --- |
-| `Enter` | Send the question from the panel's input when no reply is pending |
-| `↑` / `↓`, `PageUp` / `PageDown` | Scroll the conversation; the input stays visible |
-| `Ctrl+L` | Clear this session's `/btw` history when no reply is pending |
-| `Esc` | Close the panel immediately, cancelling only the side call if it is still running |
+| Key                              | Action                                                                            |
+| -------------------------------- | --------------------------------------------------------------------------------- |
+| `Enter`                          | Send the question from the panel's input when no reply is pending                 |
+| `↑` / `↓`, `PageUp` / `PageDown` | Scroll the conversation; the input stays visible                                  |
+| `Ctrl+L`                         | Clear this session's `/btw` history when no reply is pending                      |
+| `Esc`                            | Close the panel immediately, cancelling only the side call if it is still running |
 
 ## What you get
 
@@ -74,14 +74,14 @@ pick, but Pi needs an active model with working credentials (`/login`).
 
 ## Troubleshooting
 
-| Symptom | Cause | Fix |
-| --- | --- | --- |
-| `/btw requires interactive mode` | Running under `pi --print …` or RPC | Run Pi interactively |
-| `/btw requires an active model` | No primary model configured | Set one with `/login`, or edit Pi's own `~/.pi/agent/models.json` |
-| `/btw model (…) has no API key available.` | Credentials for the active model do not resolve | Re-authenticate that provider |
-| Enter does nothing while `…` is displayed | A side reply is still pending | Wait for it, then press Enter again; your draft stays in the input |
-| Pressing `x` does not clear history | Printable characters now belong to the chat input | Press `Ctrl+L` when no reply is pending |
-| History gone after restarting Pi | By design — state is process-scoped, never written to disk | Nothing to fix; your main session is unaffected |
+| Symptom                                    | Cause                                                      | Fix                                                                |
+| ------------------------------------------ | ---------------------------------------------------------- | ------------------------------------------------------------------ |
+| `/btw requires interactive mode`           | Running under `pi --print …` or RPC                        | Run Pi interactively                                               |
+| `/btw requires an active model`            | No primary model configured                                | Set one with `/login`, or edit Pi's own `~/.pi/agent/models.json`  |
+| `/btw model (…) has no API key available.` | Credentials for the active model do not resolve            | Re-authenticate that provider                                      |
+| Enter does nothing while `…` is displayed  | A side reply is still pending                              | Wait for it, then press Enter again; your draft stays in the input |
+| Pressing `x` does not clear history        | Printable characters now belong to the chat input          | Press `Ctrl+L` when no reply is pending                            |
+| History gone after restarting Pi           | By design — state is process-scoped, never written to disk | Nothing to fix; your main session is unaffected                    |
 
 ## License
 

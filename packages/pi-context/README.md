@@ -35,9 +35,14 @@ Persistent defaults live in `~/.pi/agent/pi-context.json` (respects `PI_CODING_A
 
 ```json
 {
-  "sources": { "agents": true, "system": true, "appendSystem": true, "skills": true },
-  "extraFiles": ["docs/RULES.md"],
-  "startupSummary": true
+	"sources": {
+		"agents": true,
+		"system": true,
+		"appendSystem": true,
+		"skills": true
+	},
+	"extraFiles": ["docs/RULES.md"],
+	"startupSummary": true
 }
 ```
 

@@ -12,11 +12,23 @@
  * `message_end` runs after).
  */
 
-import type { ExtensionUIContext, Theme } from "@earendil-works/pi-coding-agent";
+import type {
+	ExtensionUIContext,
+	Theme,
+} from "@earendil-works/pi-coding-agent";
 import { type TUI, truncateToWidth } from "@earendil-works/pi-tui";
-import { COLLAPSE_KEY_OFF, getMaxWidgetLines, resolveCollapseKey } from "./config.js";
+import {
+	COLLAPSE_KEY_OFF,
+	getMaxWidgetLines,
+	resolveCollapseKey,
+} from "./config.js";
 import { formatStatusLabel, t } from "./state/i18n-bridge.js";
-import { selectHasActive, selectOverlayLayout, selectShowTaskIds, selectTodoCounts } from "./state/selectors.js";
+import {
+	selectHasActive,
+	selectOverlayLayout,
+	selectShowTaskIds,
+	selectTodoCounts,
+} from "./state/selectors.js";
 import { getRenderState } from "./state/store.js";
 import { formatOverlayTaskLine } from "./view/format.js";
 
@@ -67,7 +79,8 @@ export class TodoOverlay {
 				(tui, factoryTheme) => {
 					this.tui = tui;
 					return {
-						render: (width: number) => this.renderWidget(this.uiCtx?.theme ?? factoryTheme, width),
+						render: (width: number) =>
+							this.renderWidget(this.uiCtx?.theme ?? factoryTheme, width),
 						invalidate: () => {
 							// No rendered strings are cached. Pi invalidates on theme changes;
 							// the next render reads uiCtx.theme.
@@ -116,23 +129,34 @@ export class TodoOverlay {
 		}
 		this.lastNextId = state.nextId;
 		const completedTaskIds = new Set(
-			state.tasks.filter((task) => task.status === "completed").map((task) => task.id),
+			state.tasks
+				.filter((task) => task.status === "completed")
+				.map((task) => task.id),
 		);
 		for (const taskId of this.completedTaskIdsPendingHide) {
-			if (!completedTaskIds.has(taskId)) this.completedTaskIdsPendingHide.delete(taskId);
+			if (!completedTaskIds.has(taskId))
+				this.completedTaskIdsPendingHide.delete(taskId);
 		}
 		for (const taskId of this.hiddenCompletedTaskIds) {
-			if (!completedTaskIds.has(taskId)) this.hiddenCompletedTaskIds.delete(taskId);
+			if (!completedTaskIds.has(taskId))
+				this.hiddenCompletedTaskIds.delete(taskId);
 		}
 		return { tasks: [...state.tasks], nextId: state.nextId };
 	}
 
 	private selectOverlayTasks(snapshot: ReturnType<TodoOverlay["getSnapshot"]>) {
-		return snapshot.tasks.filter((task) => task.status !== "deleted" && !this.shouldHideCompletedTask(task));
+		return snapshot.tasks.filter(
+			(task) =>
+				task.status !== "deleted" && !this.shouldHideCompletedTask(task),
+		);
 	}
 
-	private shouldHideCompletedTask(task: ReturnType<TodoOverlay["getSnapshot"]>["tasks"][number]): boolean {
-		return task.status === "completed" && this.hiddenCompletedTaskIds.has(task.id);
+	private shouldHideCompletedTask(
+		task: ReturnType<TodoOverlay["getSnapshot"]>["tasks"][number],
+	): boolean {
+		return (
+			task.status === "completed" && this.hiddenCompletedTaskIds.has(task.id)
+		);
 	}
 
 	private renderWidget(theme: Theme, width: number): string[] {
@@ -141,7 +165,8 @@ export class TodoOverlay {
 		if (overlayTasks.length === 0) return [];
 
 		const overlayState = { tasks: overlayTasks, nextId: snapshot.nextId };
-		const truncate = (line: string): string => truncateToWidth(line, width, "…");
+		const truncate = (line: string): string =>
+			truncateToWidth(line, width, "…");
 		const counts = selectTodoCounts(overlayState);
 		const hasActive = selectHasActive(overlayState);
 		const showIds = selectShowTaskIds(overlayState);
@@ -149,7 +174,9 @@ export class TodoOverlay {
 		const headingColor = hasActive ? "accent" : "dim";
 		const headingIcon = hasActive ? "●" : "○";
 		const headingText = `${t("overlay.heading", OVERLAY_HEADING)} (${counts.completed}/${counts.total})`;
-		const heading = truncate(`${theme.fg(headingColor, headingIcon)} ${theme.fg(headingColor, headingText)}`);
+		const heading = truncate(
+			`${theme.fg(headingColor, headingIcon)} ${theme.fg(headingColor, headingText)}`,
+		);
 
 		// Collapsed view: just the heading + a dim "└─" expand hint, then the
 		// trailing spacer. Short-circuit before the budget math and the completed-
@@ -166,7 +193,10 @@ export class TodoOverlay {
 				key === COLLAPSE_KEY_OFF
 					? t("overlay.collapsed", OVERLAY_COLLAPSED)
 					: t("overlay.expandHint", OVERLAY_EXPAND_HINT).replace("{key}", key);
-			return this.withTrailingSpacer([heading, truncate(`${theme.fg("dim", "└─")} ${theme.fg("dim", hint)}`)]);
+			return this.withTrailingSpacer([
+				heading,
+				truncate(`${theme.fg("dim", "└─")} ${theme.fg("dim", hint)}`),
+			]);
 		}
 
 		const lines: string[] = [heading];
@@ -174,7 +204,11 @@ export class TodoOverlay {
 		// one line taller — withTrailingSpacer() appends a blank row below the panel.
 		const layout = selectOverlayLayout(overlayState, getMaxWidgetLines() - 1);
 		for (const task of layout.visible) {
-			lines.push(truncate(`${theme.fg("dim", "├─")} ${formatOverlayTaskLine(task, theme, showIds)}`));
+			lines.push(
+				truncate(
+					`${theme.fg("dim", "├─")} ${formatOverlayTaskLine(task, theme, showIds)}`,
+				),
+			);
 		}
 
 		const newlyDisplayedCompletedTaskIds = overlayTasks
@@ -197,12 +231,22 @@ export class TodoOverlay {
 
 		const totalHidden = layout.hiddenCompleted + layout.truncatedTail;
 		const overflowParts: string[] = [];
-		if (layout.hiddenCompleted > 0) overflowParts.push(`${layout.hiddenCompleted} ${formatStatusLabel("completed")}`);
-		if (layout.truncatedTail > 0) overflowParts.push(`${layout.truncatedTail} ${formatStatusLabel("pending")}`);
+		if (layout.hiddenCompleted > 0)
+			overflowParts.push(
+				`${layout.hiddenCompleted} ${formatStatusLabel("completed")}`,
+			);
+		if (layout.truncatedTail > 0)
+			overflowParts.push(
+				`${layout.truncatedTail} ${formatStatusLabel("pending")}`,
+			);
 		const more = t("overlay.more", OVERLAY_MORE);
 		const summary =
-			overflowParts.length > 0 ? `+${totalHidden} ${more} (${overflowParts.join(", ")})` : `+${totalHidden} ${more}`;
-		lines.push(truncate(`${theme.fg("dim", "└─")} ${theme.fg("dim", summary)}`));
+			overflowParts.length > 0
+				? `+${totalHidden} ${more} (${overflowParts.join(", ")})`
+				: `+${totalHidden} ${more}`;
+		lines.push(
+			truncate(`${theme.fg("dim", "└─")} ${theme.fg("dim", summary)}`),
+		);
 		return this.withTrailingSpacer(lines);
 	}
 

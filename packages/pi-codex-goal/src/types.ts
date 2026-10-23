@@ -20,7 +20,10 @@ export interface ThreadGoal {
 
 export type GoalEntrySource = "command" | "tool" | "runtime";
 
-export type RuntimeUsageGoalStatus = Extract<GoalStatus, "active" | "budgetLimited">;
+export type RuntimeUsageGoalStatus = Extract<
+	GoalStatus,
+	"active" | "budgetLimited"
+>;
 
 export type GoalCustomEntry =
 	| {

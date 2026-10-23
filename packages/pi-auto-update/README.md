@@ -31,10 +31,10 @@ an update manually:
 Manual updates also run in the background. If an update is already running,
 this command reuses it instead of starting another one.
 
-| Environment variable | Effect |
-| --- | --- |
-| `PI_OFFLINE=1` | Skip auto-update entirely (offline mode) |
-| `PI_AUTO_UPDATE=0` | Disable auto-update |
+| Environment variable | Effect                                   |
+| -------------------- | ---------------------------------------- |
+| `PI_OFFLINE=1`       | Skip auto-update entirely (offline mode) |
+| `PI_AUTO_UPDATE=0`   | Disable auto-update                      |
 
 On Windows the `pi` CLI is invoked through `cmd.exe`, because npm/pnpm install
 CLI entrypoints as `.cmd` shims and Pi's exec API does not use a shell.

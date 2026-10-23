@@ -5,5 +5,5 @@ import { registerGoalRuntimeController } from "./goal-runtime-controller.js";
 export { __testHooks } from "./runtime-config.js";
 
 export default function (pi: ExtensionAPI): void {
-  registerGoalRuntimeController(pi);
+	registerGoalRuntimeController(pi);
 }

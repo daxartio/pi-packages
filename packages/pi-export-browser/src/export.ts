@@ -46,14 +46,21 @@ export type ExportSessionToHtml = (
 ) => Promise<string>;
 
 /** Timestamped, collision-free file name for one export inside tmpdir. */
-export function buildOutputPath(sessionFile: string | undefined, sessionId: string, now = new Date()): string {
+export function buildOutputPath(
+	sessionFile: string | undefined,
+	sessionId: string,
+	now = new Date(),
+): string {
 	const base = sessionFile ? basename(sessionFile, ".jsonl") : sessionId;
 	const stamp = now.toISOString().replace(/[:.]/g, "-");
 	return join(tmpdir(), `pi-session-${base}-${stamp}.html`);
 }
 
 /** OS-specific command that opens a file in the default browser. */
-export function resolveOpener(platform: NodeJS.Platform = process.platform): { command: string; args: string[] } {
+export function resolveOpener(platform: NodeJS.Platform = process.platform): {
+	command: string;
+	args: string[];
+} {
 	switch (platform) {
 		case "darwin":
 			return { command: "open", args: [] };
@@ -65,10 +72,16 @@ export function resolveOpener(platform: NodeJS.Platform = process.platform): { c
 }
 
 /** Open a file in the default browser without blocking the caller. */
-export function openInBrowser(filePath: string, spawnFn: typeof spawn = spawn): Promise<void> {
+export function openInBrowser(
+	filePath: string,
+	spawnFn: typeof spawn = spawn,
+): Promise<void> {
 	return new Promise((resolve, reject) => {
 		const { command, args } = resolveOpener();
-		const child = spawnFn(command, [...args, filePath], { detached: true, stdio: "ignore" });
+		const child = spawnFn(command, [...args, filePath], {
+			detached: true,
+			stdio: "ignore",
+		});
 		child.once("error", reject);
 		child.once("spawn", () => {
 			child.unref();
@@ -82,12 +95,18 @@ export function openInBrowser(filePath: string, spawnFn: typeof spawn = spawn): 
  * package root (the function is not re-exported from the package entry).
  * Kept lazy so tests and non-export code paths never pay for it.
  */
-export async function loadExportSessionToHtml(): Promise<ExportSessionToHtml | undefined> {
+export async function loadExportSessionToHtml(): Promise<
+	ExportSessionToHtml | undefined
+> {
 	try {
 		const rootUrl = import.meta.resolve("@earendil-works/pi-coding-agent");
 		const deepUrl = new URL("core/export-html/index.js", rootUrl).href;
-		const mod = (await import(deepUrl)) as { exportSessionToHtml?: ExportSessionToHtml };
-		return typeof mod.exportSessionToHtml === "function" ? mod.exportSessionToHtml : undefined;
+		const mod = (await import(deepUrl)) as {
+			exportSessionToHtml?: ExportSessionToHtml;
+		};
+		return typeof mod.exportSessionToHtml === "function"
+			? mod.exportSessionToHtml
+			: undefined;
 	} catch {
 		return undefined;
 	}
@@ -99,26 +118,40 @@ export async function loadExportSessionToHtml(): Promise<ExportSessionToHtml | u
  * rendering from the raw JSONL session file so /browse still works. Still
  * includes the system prompt and the tool list from the export state.
  */
-export function exportFallback(sm: ExportSessionData, outputPath: string, state?: ExportState): string {
+export function exportFallback(
+	sm: ExportSessionData,
+	outputPath: string,
+	state?: ExportState,
+): string {
 	const sessionFile = sm.getSessionFile();
 	if (!sessionFile) throw new Error("Cannot export an in-memory session");
-	if (!existsSync(sessionFile)) throw new Error("Nothing to export yet - start a conversation first");
-	const escape = (s: string) =>
-		s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+	if (!existsSync(sessionFile))
+		throw new Error("Nothing to export yet - start a conversation first");
+	const escapeHtml = (text: string) =>
+		text
+			.replace(/&/g, "&amp;")
+			.replace(/</g, "&lt;")
+			.replace(/>/g, "&gt;")
+			.replace(/"/g, "&quot;");
 	const sections: string[] = [];
 	if (state?.systemPrompt) {
-		sections.push(`<h2>System Prompt</h2><pre>${escape(state.systemPrompt)}</pre>`);
+		sections.push(
+			`<h2>System Prompt</h2><pre>${escapeHtml(state.systemPrompt)}</pre>`,
+		);
 	}
 	if (state?.tools && state.tools.length > 0) {
 		const items = state.tools
-			.map((tool) => `<li><b>${escape(tool.name)}</b>${tool.description ? ` — ${escape(tool.description)}` : ""}</li>`)
+			.map(
+				(tool) =>
+					`<li><b>${escapeHtml(tool.name)}</b>${tool.description ? ` — ${escapeHtml(tool.description)}` : ""}</li>`,
+			)
 			.join("\n");
 		sections.push(`<h2>Available Tools</h2><ul>${items}</ul>`);
 	}
 	const lines = readFileSync(sessionFile, "utf8")
 		.split("\n")
 		.filter(Boolean)
-		.map((line) => `<pre>${escape(line)}</pre>`)
+		.map((line) => `<pre>${escapeHtml(line)}</pre>`)
 		.join("\n");
 	const html = `<!doctype html>
 <html><head><meta charset="utf-8"><title>pi session export</title></head>
@@ -138,7 +171,9 @@ export async function exportAndOpen(
 ): Promise<{ filePath: string; opened: boolean }> {
 	const outputPath = buildOutputPath(sm.getSessionFile(), sm.getSessionId());
 	const exporter = await deps.resolveExporter();
-	const filePath = exporter ? await exporter(sm, state, { outputPath }) : exportFallback(sm, outputPath, state);
+	const filePath = exporter
+		? await exporter(sm, state, { outputPath })
+		: exportFallback(sm, outputPath, state);
 	await openInBrowser(filePath, deps.spawnFn);
 	return { filePath, opened: true };
 }

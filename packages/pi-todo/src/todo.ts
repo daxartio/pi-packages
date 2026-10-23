@@ -10,7 +10,11 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { loadConfig, validateGuidanceFields } from "./config.js";
 import { formatStatusLabel, t } from "./state/i18n-bridge.js";
-import { selectTasksByStatus, selectTodoCounts, selectVisibleTasks } from "./state/selectors.js";
+import {
+	selectTasksByStatus,
+	selectTodoCounts,
+	selectVisibleTasks,
+} from "./state/selectors.js";
 import { applyTaskMutation } from "./state/state-reducer.js";
 import { commitState, getRenderState, getState, sid } from "./state/store.js";
 import { buildToolResult } from "./tool/response-envelope.js";
@@ -23,7 +27,11 @@ import {
 	TOOL_NAME,
 	TodoParamsSchema,
 } from "./tool/types.js";
-import { formatCommandTaskLine, renderTodoCall, renderTodoResult } from "./view/format.js";
+import {
+	formatCommandTaskLine,
+	renderTodoCall,
+	renderTodoResult,
+} from "./view/format.js";
 
 // English fallbacks for localized /todos section headers — the box-drawing
 // decoration is part of the localized string so translators can adjust spacing.
@@ -38,16 +46,28 @@ const SECTION_COMPLETED = "── Completed ──";
 
 export { isTransitionValid } from "./state/invariants.js";
 export { applyTaskMutation } from "./state/state-reducer.js";
-export { __resetState, getNextId, getTodos, setActiveRenderSession, sid } from "./state/store.js";
+export {
+	__resetState,
+	getNextId,
+	getTodos,
+	setActiveRenderSession,
+	sid,
+} from "./state/store.js";
 export { deriveBlocks, detectCycle } from "./state/task-graph.js";
-export type { Task, TaskAction, TaskDetails, TaskStatus } from "./tool/types.js";
+export type {
+	Task,
+	TaskAction,
+	TaskDetails,
+	TaskStatus,
+} from "./tool/types.js";
 export { TOOL_NAME } from "./tool/types.js";
 
 // ---------------------------------------------------------------------------
 // Tool registration
 // ---------------------------------------------------------------------------
 
-export const DEFAULT_PROMPT_SNIPPET = "Plan non-trivial work as a visible, complete multi-step task list";
+export const DEFAULT_PROMPT_SNIPPET =
+	"Plan non-trivial work as a visible, complete multi-step task list";
 export const DEFAULT_PROMPT_GUIDELINES: string[] = [
 	"Use `todo` for any request with multiple execution phases, a list of requirements, or likely investigation, implementation, and validation work. Skip it only for a single trivial action or purely conversational request.",
 	"Before researching, editing files, running commands, or otherwise acting on non-trivial work, create todos for every known execution phase. Do not represent a multi-phase request with one catch-all todo.",
@@ -74,9 +94,18 @@ export function registerTodoTool(pi: ExtensionAPI): void {
 		parameters: TodoParamsSchema,
 
 		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
-			const result = applyTaskMutation(getState(sid(ctx)), params.action, params as TaskMutationParams);
+			const result = applyTaskMutation(
+				getState(sid(ctx)),
+				params.action,
+				params as TaskMutationParams,
+			);
 			commitState(sid(ctx), result.state);
-			return buildToolResult(params.action, params as TaskMutationParams, result.state, result.op);
+			return buildToolResult(
+				params.action,
+				params as TaskMutationParams,
+				result.state,
+				result.op,
+			);
 		},
 
 		// renderCall reflects the FOREGROUND slot, not the calling session's. Pi's
@@ -106,7 +135,10 @@ export function registerTodosCommand(pi: ExtensionAPI): void {
 		description: "Show all todos on the current branch, grouped by status",
 		handler: async (_args, ctx) => {
 			if (!ctx.hasUI) {
-				ctx.ui.notify(t("command.requires_interactive", ERR_REQUIRES_INTERACTIVE), "error");
+				ctx.ui.notify(
+					t("command.requires_interactive", ERR_REQUIRES_INTERACTIVE),
+					"error",
+				);
 				return;
 			}
 			const state = getState(sid(ctx));
@@ -119,22 +151,30 @@ export function registerTodosCommand(pi: ExtensionAPI): void {
 			const counts = selectTodoCounts(state);
 
 			const header: string[] = [];
-			if (counts.completed > 0) header.push(`${counts.completed}/${counts.total} ${formatStatusLabel("completed")}`);
-			if (counts.inProgress > 0) header.push(`${counts.inProgress} ${formatStatusLabel("in_progress")}`);
-			if (counts.pending > 0) header.push(`${counts.pending} ${formatStatusLabel("pending")}`);
+			if (counts.completed > 0)
+				header.push(
+					`${counts.completed}/${counts.total} ${formatStatusLabel("completed")}`,
+				);
+			if (counts.inProgress > 0)
+				header.push(`${counts.inProgress} ${formatStatusLabel("in_progress")}`);
+			if (counts.pending > 0)
+				header.push(`${counts.pending} ${formatStatusLabel("pending")}`);
 
 			const lines: string[] = [header.join(" · ")];
 			if (groups.pending.length > 0) {
 				lines.push(t("command.section.pending", SECTION_PENDING));
-				for (const task of groups.pending) lines.push(formatCommandTaskLine(task, "○"));
+				for (const task of groups.pending)
+					lines.push(formatCommandTaskLine(task, "○"));
 			}
 			if (groups.inProgress.length > 0) {
 				lines.push(t("command.section.in_progress", SECTION_IN_PROGRESS));
-				for (const task of groups.inProgress) lines.push(formatCommandTaskLine(task, "◐"));
+				for (const task of groups.inProgress)
+					lines.push(formatCommandTaskLine(task, "◐"));
 			}
 			if (groups.completed.length > 0) {
 				lines.push(t("command.section.completed", SECTION_COMPLETED));
-				for (const task of groups.completed) lines.push(formatCommandTaskLine(task, "✓"));
+				for (const task of groups.completed)
+					lines.push(formatCommandTaskLine(task, "✓"));
 			}
 
 			ctx.ui.notify(lines.join("\n"), "info");

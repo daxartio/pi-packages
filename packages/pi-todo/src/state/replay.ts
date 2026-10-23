@@ -21,10 +21,18 @@ export function isTaskDetails(value: unknown): value is TaskDetails {
  * store after this returns. The function explicitly does NOT touch the store
  * cell.
  */
-export function replayFromBranch(ctx: { sessionManager: { getBranch(): Iterable<unknown> } }): TaskState {
-	let result: TaskState = { tasks: [...EMPTY_STATE.tasks], nextId: EMPTY_STATE.nextId };
+export function replayFromBranch(ctx: {
+	sessionManager: { getBranch(): Iterable<unknown> };
+}): TaskState {
+	let result: TaskState = {
+		tasks: [...EMPTY_STATE.tasks],
+		nextId: EMPTY_STATE.nextId,
+	};
 	for (const entry of ctx.sessionManager.getBranch()) {
-		const e = entry as { type?: string; message?: { role?: string; toolName?: string; details?: unknown } };
+		const e = entry as {
+			type?: string;
+			message?: { role?: string; toolName?: string; details?: unknown };
+		};
 		if (e.type !== "message") continue;
 		const msg = e.message;
 		if (msg?.role !== "toolResult" || msg.toolName !== "todo") continue;

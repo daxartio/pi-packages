@@ -24,13 +24,13 @@ The SDK is loaded on first engine use. On Pi's `session_shutdown` event, the ext
 
 ## Tools
 
-| Tool | Purpose |
-| --- | --- |
-| `servo_fetch` | Read a page with an independent stateless request; return Markdown (default), rendered HTML, plain text, or article JSON. |
+| Tool                      | Purpose                                                                                                                                                                                                       |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `servo_fetch`             | Read a page with an independent stateless request; return Markdown (default), rendered HTML, plain text, or article JSON.                                                                                     |
 | `servo_fetch_batch_fetch` | Fetch 1–20 URLs through the same HTTP/Servo routing as single fetch; return per-URL Markdown or errors in input order, with source metadata. Default concurrency 2, maximum 8; timeout is per dispatched URL. |
-| `servo_fetch_map` | Discover URLs through sitemaps and HTML link fallback, without rendering; default 100 URLs, maximum 1,000. |
-| `servo_fetch_execute_js` | Load a URL and evaluate a JavaScript expression in the rendered page; return the SDK's result string. |
-| `servo_fetch_screenshot` | Capture a viewport or full-page PNG; return an image and a temporary file path. |
+| `servo_fetch_map`         | Discover URLs through sitemaps and HTML link fallback, without rendering; default 100 URLs, maximum 1,000.                                                                                                    |
+| `servo_fetch_execute_js`  | Load a URL and evaluate a JavaScript expression in the rendered page; return the SDK's result string.                                                                                                         |
+| `servo_fetch_screenshot`  | Capture a viewport or full-page PNG; return an image and a temporary file path.                                                                                                                               |
 
 Rendering tools accept `timeout` in **seconds** (default 30, range 1–120) and `settle` in **milliseconds** (default 0, range 0–10,000) for late-loading JavaScript. `servo_fetch_map` accepts `timeout` but not `settle`.
 
@@ -43,15 +43,23 @@ Local `visibility` is **not** upstream's layout heuristic: `moderate` excludes h
 Example tool arguments:
 
 ```json
-{"url":"https://example.com","format":"markdown","selector":"main","settle":500}
+{
+	"url": "https://example.com",
+	"format": "markdown",
+	"selector": "main",
+	"settle": 500
+}
 ```
 
 ```json
-{"url":"https://example.com","expression":"JSON.stringify({title: document.title, links: document.links.length})"}
+{
+	"url": "https://example.com",
+	"expression": "JSON.stringify({title: document.title, links: document.links.length})"
+}
 ```
 
 ```json
-{"url":"https://example.com","limit":20,"include":["/docs/**"]}
+{ "url": "https://example.com", "limit": 20, "include": ["/docs/**"] }
 ```
 
 Pi can also call these tools from codemode, when enabled:

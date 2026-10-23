@@ -1,4 +1,5 @@
 ---
+
 description: Convert a plain task into a strict evidence-based pi-codex goal and create it
 argument-hint: "<task>"
 ---
@@ -15,7 +16,6 @@ Do not set a token budget limit unless the user explicitly provides a budget/lim
 The goal must be a completion contract, not a task summary. Preserve the user's full intent. Do not weaken broad acceptance criteria such as "all", "any", "complete", "no tech debt", "do it right", "fully", or "hard acceptance criteria".
 
 The goal must require:
-
 1. Outcome
    - State what must be true when complete.
    - Preserve the full requested end state.

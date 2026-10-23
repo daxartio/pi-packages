@@ -1,7 +1,12 @@
 import type { TaskState } from "../state/state.js";
 import type { Op } from "../state/state-reducer.js";
 import { deriveBlocks } from "../state/task-graph.js";
-import type { Task, TaskAction, TaskDetails, TaskMutationParams } from "./types.js";
+import type {
+	Task,
+	TaskAction,
+	TaskDetails,
+	TaskMutationParams,
+} from "./types.js";
 
 /**
  * Format a single task as a `[status] #id subject [(activeForm)] [⛓ #dep,…]`
@@ -9,8 +14,11 @@ import type { Task, TaskAction, TaskDetails, TaskMutationParams } from "./types.
  * formatting paths use `view/format.ts` for richer presentations.
  */
 function formatListLine(t: Task): string {
-	const block = t.blockedBy?.length ? ` ⛓ ${t.blockedBy.map((id) => `#${id}`).join(",")}` : "";
-	const form = t.status === "in_progress" && t.activeForm ? ` (${t.activeForm})` : "";
+	const block = t.blockedBy?.length
+		? ` ⛓ ${t.blockedBy.map((id) => `#${id}`).join(",")}`
+		: "";
+	const form =
+		t.status === "in_progress" && t.activeForm ? ` (${t.activeForm})` : "";
 	return `[${t.status}] #${t.id} ${t.subject}${form}${block}`;
 }
 
@@ -25,7 +33,9 @@ function formatGetLines(task: Task, state: TaskState): string {
 	if (task.description) lines.push(`  description: ${task.description}`);
 	if (task.activeForm) lines.push(`  activeForm: ${task.activeForm}`);
 	if (task.blockedBy?.length) {
-		lines.push(`  blockedBy: ${task.blockedBy.map((id) => `#${id}`).join(", ")}`);
+		lines.push(
+			`  blockedBy: ${task.blockedBy.map((id) => `#${id}`).join(", ")}`,
+		);
 	}
 	if (blocks.length) {
 		lines.push(`  blocks: ${blocks.map((id) => `#${id}`).join(", ")}`);
@@ -52,7 +62,10 @@ export function formatContent(op: Op, state: TaskState): string {
 			if (!op.changed) {
 				return `No change: #${op.id} already matches the requested values (status: ${op.toStatus})`;
 			}
-			const transition = op.fromStatus !== op.toStatus ? ` (${op.fromStatus} → ${op.toStatus})` : "";
+			const transition =
+				op.fromStatus !== op.toStatus
+					? ` (${op.fromStatus} → ${op.toStatus})`
+					: "";
 			return `Updated #${op.id}${transition}`;
 		}
 		case "delete":
@@ -62,8 +75,11 @@ export function formatContent(op: Op, state: TaskState): string {
 		case "list": {
 			let view = state.tasks;
 			if (!op.includeDeleted) view = view.filter((t) => t.status !== "deleted");
-			if (op.statusFilter) view = view.filter((t) => t.status === op.statusFilter);
-			return view.length === 0 ? "No tasks" : view.map(formatListLine).join("\n");
+			if (op.statusFilter)
+				view = view.filter((t) => t.status === op.statusFilter);
+			return view.length === 0
+				? "No tasks"
+				: view.map(formatListLine).join("\n");
 		}
 		case "get":
 			return formatGetLines(op.task, state);

@@ -17,7 +17,6 @@ Run `/reload` in an existing session after installing.
 ## What the agent sees
 
 Before each agent run with active `codemode`, the extension refreshes one structured system-prompt section containing:
-
 - The current chat model.
 - Every session-scoped chat model, including catalog metadata and scoped thinking levels.
 - Up to two available examples per type: `chat`, `image`, and `classifier`, plus each type's available catalog count.
@@ -37,13 +36,15 @@ These snippets are raw JavaScript inputs to the `codemode` tool:
 
 ```js
 const entries = await models.getAvailableOfType("chat");
-text(entries.map(m => ({
-  provider: m.provider,
-  id: m.id,
-  name: m.name,
-  input: m.input,
-  contextWindow: m.contextWindow,
-})));
+text(
+	entries.map((m) => ({
+		provider: m.provider,
+		id: m.id,
+		name: m.name,
+		input: m.input,
+		contextWindow: m.contextWindow,
+	})),
+);
 ```
 
 Replace `"chat"` with `"image"` or `"classifier"` for other types. The optional second argument filters by provider.

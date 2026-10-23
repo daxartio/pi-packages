@@ -7,16 +7,25 @@ function fakeModel(provider: string, id: string): Model<Api> {
 }
 
 describe("selectableModels", () => {
-	const available = [fakeModel("openai", "gpt-5.6-mini"), fakeModel("anthropic", "claude-sonnet-4-5")];
+	const available = [
+		fakeModel("openai", "gpt-5.6-mini"),
+		fakeModel("anthropic", "claude-sonnet-4-5"),
+	];
 
 	test("returns all available models when no scope is configured", () => {
 		const candidates = selectableModels(available, []);
-		expect(candidates.map((c) => c.ref)).toEqual(["openai/gpt-5.6-mini", "anthropic/claude-sonnet-4-5"]);
+		expect(candidates.map((c) => c.ref)).toEqual([
+			"openai/gpt-5.6-mini",
+			"anthropic/claude-sonnet-4-5",
+		]);
 	});
 
 	test("limits candidates to the scope and keeps pinned thinking levels", () => {
 		const scoped = [
-			{ model: fakeModel("anthropic", "claude-sonnet-4-5"), thinkingLevel: "high" as const },
+			{
+				model: fakeModel("anthropic", "claude-sonnet-4-5"),
+				thinkingLevel: "high" as const,
+			},
 			{ model: fakeModel("google", "gemini-3-pro") }, // not available -> dropped
 		];
 		const candidates = selectableModels(available, scoped);
@@ -38,8 +47,12 @@ describe("formatCandidate", () => {
 	});
 
 	test("falls back to the classified thinking level", () => {
-		expect(formatCandidate({ ref: "a/b", provider: "a", model: "b" }, "medium")).toBe("a/b:medium");
-		expect(formatCandidate({ ref: "a/b", provider: "a", model: "b" })).toBe("a/b");
+		expect(
+			formatCandidate({ ref: "a/b", provider: "a", model: "b" }, "medium"),
+		).toBe("a/b:medium");
+		expect(formatCandidate({ ref: "a/b", provider: "a", model: "b" })).toBe(
+			"a/b",
+		);
 	});
 });
 

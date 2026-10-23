@@ -51,6 +51,31 @@ test("discovers built-in agents without pinned models or tool restrictions", asy
 	}
 });
 
+test("agent frontmatter accepts blank lines but rejects malformed fields", async () => {
+	const cwd = await mkdtemp(join(tmpdir(), "pi-subagents-frontmatter-"));
+	const root = join(cwd, ".pi", "agents");
+	await mkdir(root, { recursive: true });
+	const path = join(root, "custom.md");
+	const discover = () =>
+		discoverAgents({ cwd, scope: "project", projectTrusted: true });
+	try {
+		for (const blankLine of ["", " ", "\t"]) {
+			await writeFile(
+				path,
+				`---\n${blankLine}\nname: custom\n${blankLine}\ndescription: Inspect changes\ntools: read,write\n${blankLine}\n---\nInspect.`,
+			);
+			const agent = resolveAgent(await discover(), "custom");
+			assert.equal(agent.description, "Inspect changes");
+			assert.deepEqual(agent.tools, ["read", "write"]);
+			assert.equal(agent.systemPrompt, "Inspect.");
+		}
+		await writeFile(path, "---\n\nname: custom\ninvalid field\n---\nInspect.");
+		await assert.rejects(discover(), /invalid agent frontmatter/u);
+	} finally {
+		await rm(cwd, { recursive: true, force: true });
+	}
+});
+
 test("custom agent tool restrictions remain optional and validated", async () => {
 	const cwd = await mkdtemp(join(tmpdir(), "pi-subagents-custom-"));
 	const root = join(cwd, ".pi", "agents");

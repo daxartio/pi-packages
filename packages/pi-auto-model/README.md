@@ -62,15 +62,15 @@ For custom classifier settings and routing hints, edit `~/.pi/agent/auto-model.j
 
 ```json
 {
-  "version": 1,
-  "enabled": true,
-  "classifierThinkingLevel": "low",
-  "extraInstructions": "Prefer Claude models for Rust work.",
-  "modelHints": {
-    "openai/gpt-5.6-mini": "fast and cheap; quick questions, lookups, small edits",
-    "anthropic/claude-sonnet-4-5": "default workhorse for everyday coding and debugging",
-    "anthropic/claude-opus-4-5": "architecture, migrations, security, hairy root-cause hunts"
-  }
+	"version": 1,
+	"enabled": true,
+	"classifierThinkingLevel": "low",
+	"extraInstructions": "Prefer Claude models for Rust work.",
+	"modelHints": {
+		"openai/gpt-5.6-mini": "fast and cheap; quick questions, lookups, small edits",
+		"anthropic/claude-sonnet-4-5": "default workhorse for everyday coding and debugging",
+		"anthropic/claude-opus-4-5": "architecture, migrations, security, hairy root-cause hunts"
+	}
 }
 ```
 

@@ -33,17 +33,30 @@ function isFile(path: string): boolean {
 	}
 }
 
-function readSource(path: string, kind: ContextSourceFile["kind"], label?: string): ContextSourceFile | undefined {
+function readSource(
+	path: string,
+	kind: ContextSourceFile["kind"],
+	label?: string,
+): ContextSourceFile | undefined {
 	if (!isFile(path)) return undefined;
 	try {
 		const content = readFileSync(path, "utf8");
-		return { path, kind, label: label ?? path.split("/").pop() ?? path, content, tokens: estimateTokensFromText(content) };
+		return {
+			path,
+			kind,
+			label: label ?? path.split("/").pop() ?? path,
+			content,
+			tokens: estimateTokensFromText(content),
+		};
 	} catch {
 		return undefined;
 	}
 }
 
-function discoverExtraFiles(cwd: string, extraFiles: string[]): ContextSourceFile[] {
+function discoverExtraFiles(
+	cwd: string,
+	extraFiles: string[],
+): ContextSourceFile[] {
 	const files: ContextSourceFile[] = [];
 	for (const raw of extraFiles) {
 		const path = resolve(cwd, raw);
@@ -60,8 +73,12 @@ function discoverExtraFiles(cwd: string, extraFiles: string[]): ContextSourceFil
  * (contextFiles, skills, customPrompt, appendSystemPrompt), so they are
  * governed through those, not re-discovered here.
  */
-export function discoverContextFiles(options: DiscoveryOptions): ContextSourceFile[] {
-	return discoverExtraFiles(options.cwd, options.extraFiles ?? []).filter((file) => existsSync(file.path));
+export function discoverContextFiles(
+	options: DiscoveryOptions,
+): ContextSourceFile[] {
+	return discoverExtraFiles(options.cwd, options.extraFiles ?? []).filter(
+		(file) => existsSync(file.path),
+	);
 }
 
 /** Total estimated tokens across the given source files. */

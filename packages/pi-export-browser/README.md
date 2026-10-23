@@ -13,7 +13,6 @@ That's it — the session is rendered with pi's own HTML exporter, written to
 browser opener (`open` on macOS, `xdg-open` on Linux, `start` on Windows).
 
 The export uses Pi's HTML renderer and includes:
-
 - the recorded system prompt of the selected branch, including dynamic sections such as `<model_context>`;
 - all currently active tool definitions (name, description, JSON schema);
 - the whole message tree of the current session branch, with stats and theme.

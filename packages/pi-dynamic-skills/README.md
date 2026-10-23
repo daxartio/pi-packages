@@ -31,16 +31,16 @@ compatibility: >-
 
 Each expression is an object with exactly one operator:
 
-| Expression | Meaning |
-| --- | --- |
-| `{"exists":".git"}` | A path exists (file or directory). |
-| `{"file":"Cargo.toml"}` | A path is a regular file. |
-| `{"directory":"src"}` | A path is a directory. |
-| `{"ancestor":".git"}` | A path exists in the working directory or any parent up to the filesystem root. |
-| `{"platform":"linux"}` | Match Node's `process.platform`, e.g. `linux`, `darwin`, `win32`. |
-| `{"all":[expression, expression]}` | All expressions match; array must be nonempty. |
-| `{"any":[expression, expression]}` | At least one expression matches; array must be nonempty. |
-| `{"not":expression}` | Negate an expression. |
+| Expression                         | Meaning                                                                         |
+| ---------------------------------- | ------------------------------------------------------------------------------- |
+| `{"exists":".git"}`                | A path exists (file or directory).                                              |
+| `{"file":"Cargo.toml"}`            | A path is a regular file.                                                       |
+| `{"directory":"src"}`              | A path is a directory.                                                          |
+| `{"ancestor":".git"}`              | A path exists in the working directory or any parent up to the filesystem root. |
+| `{"platform":"linux"}`             | Match Node's `process.platform`, e.g. `linux`, `darwin`, `win32`.               |
+| `{"all":[expression, expression]}` | All expressions match; array must be nonempty.                                  |
+| `{"any":[expression, expression]}` | At least one expression matches; array must be nonempty.                        |
+| `{"not":expression}`               | Negate an expression.                                                           |
 
 Paths are relative to Pi's working directory, **not** the skill directory. Absolute paths are also accepted. For `ancestor`, paths are resolved against each ancestor. No glob, environment-variable or `~` expansion occurs. Symlinks are followed; broken symlinks count as missing. Expressions are limited to 500 characters and 16 nesting levels. No JavaScript, shell commands, network requests, or environment variables are evaluated.
 

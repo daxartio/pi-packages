@@ -4,233 +4,243 @@ import { TaskScheduler } from "./scheduler.js";
 import { type InheritedTool, resolveChildTools } from "./tool-inheritance.js";
 import { BUILTIN_TOOLS, resolveTools } from "./tools.js";
 import type {
-  AgentDefinition,
-  ContextMode,
-  DynamicPlanV1,
-  ExplicitTaskRequest,
-  RunRequest,
-  RunResult,
-  TaskRequest,
-  TaskResult,
+	AgentDefinition,
+	ContextMode,
+	DynamicPlanV1,
+	ExplicitTaskRequest,
+	RunRequest,
+	RunResult,
+	TaskRequest,
+	TaskResult,
 } from "./types.js";
 
 export interface ChildExecutor {
-  run(input: {
-    runId: string;
-    taskId: string;
-    task: string;
-    agent: AgentDefinition;
-    tools: string[];
-    activeTools?: string[];
-    toolSources?: InheritedTool[];
-    cwd: string;
-    context: ContextMode;
-    signal?: AbortSignal;
-  }): Promise<string>;
+	run(input: {
+		runId: string;
+		taskId: string;
+		task: string;
+		agent: AgentDefinition;
+		tools: string[];
+		activeTools?: string[];
+		toolSources?: InheritedTool[];
+		cwd: string;
+		context: ContextMode;
+		signal?: AbortSignal;
+	}): Promise<string>;
 }
 
 export interface Planner {
-  plan(task: string, signal?: AbortSignal): Promise<DynamicPlanV1>;
+	plan(task: string, signal?: AbortSignal): Promise<DynamicPlanV1>;
 }
 
 export class SubagentOrchestrator {
-  constructor(
-    private readonly agents: Map<string, AgentDefinition>,
-    private readonly executor: ChildExecutor,
-    private readonly planner: Planner,
-    private readonly defaultCwd: string,
-    private readonly scheduler = new TaskScheduler(),
-    private readonly parentTools: readonly string[] = BUILTIN_TOOLS,
-    private readonly parentToolSources: readonly InheritedTool[] = [],
-  ) {}
+	constructor(
+		private readonly agents: Map<string, AgentDefinition>,
+		private readonly executor: ChildExecutor,
+		private readonly planner: Planner,
+		private readonly defaultCwd: string,
+		private readonly scheduler = new TaskScheduler(),
+		private readonly parentTools: readonly string[] = BUILTIN_TOOLS,
+		private readonly parentToolSources: readonly InheritedTool[] = [],
+	) {}
 
-  async run(request: RunRequest, signal?: AbortSignal): Promise<RunResult> {
-    const runId = randomUUID();
-    if (request.mode === "dynamic")
-      return this.runDynamic(runId, request.task, signal);
+	async run(request: RunRequest, signal?: AbortSignal): Promise<RunResult> {
+		const runId = randomUUID();
+		if (request.mode === "dynamic")
+			return this.runDynamic(runId, request.task, signal);
 
-    if (request.mode === "single") {
-      const result = await this.runExplicit(runId, "0", request.task, signal);
-      return this.result(runId, [result]);
-    }
+		if (request.mode === "single") {
+			const result = await this.runExplicit(runId, "0", request.task, signal);
+			return this.result(runId, [result]);
+		}
 
-    if (request.mode === "parallel") {
-      const tasks = await Promise.all(
-        request.tasks.map((task, index) =>
-          this.runExplicit(runId, `${index}`, task, signal),
-        ),
-      );
-      return this.result(runId, tasks);
-    }
+		if (request.mode === "parallel") {
+			const tasks = await Promise.all(
+				request.tasks.map((task, index) =>
+					this.runExplicit(runId, `${index}`, task, signal),
+				),
+			);
+			return this.result(runId, tasks);
+		}
 
-    const tasks: TaskResult[] = [];
-    for (const [index, task] of request.tasks.entries()) {
-      const expanded = {
-        ...task,
-        task: task.task.replaceAll("{previous}", tasks.at(-1)?.text ?? ""),
-      };
-      const result = await this.runExplicit(
-        runId,
-        `${index}`,
-        expanded,
-        signal,
-      );
-      tasks.push(result);
-      if (result.state !== "completed") break;
-    }
-    return this.result(runId, tasks);
-  }
+		const tasks: TaskResult[] = [];
+		for (const [index, task] of request.tasks.entries()) {
+			const expanded = {
+				...task,
+				task: task.task.replaceAll("{previous}", tasks.at(-1)?.text ?? ""),
+			};
+			const result = await this.runExplicit(
+				runId,
+				`${index}`,
+				expanded,
+				signal,
+			);
+			tasks.push(result);
+			if (result.state !== "completed") break;
+		}
+		return this.result(runId, tasks);
+	}
 
-  private async runDynamic(
-    runId: string,
-    objective: TaskRequest,
-    signal?: AbortSignal,
-  ): Promise<RunResult> {
-    const plan = validateDag(await this.planner.plan(objective.task, signal));
-    for (const role of plan.roles) {
-      this.agents.set(role.id, {
-        name: role.id,
-        description: role.label,
-        aliases: [],
-        systemPrompt: `Do not delegate. Untrusted role brief:\n${role.roleBrief}`,
-        fallbackModels: [],
-        defaultContext: "fresh",
-        inheritProjectContext: false,
-        inheritSkills: false,
-        source: "dynamic",
-        filePath: "<generated>",
-      });
-    }
+	private async runDynamic(
+		runId: string,
+		objective: TaskRequest,
+		signal?: AbortSignal,
+	): Promise<RunResult> {
+		const plan = validateDag(await this.planner.plan(objective.task, signal));
+		for (const role of plan.roles) {
+			this.agents.set(role.id, {
+				name: role.id,
+				description: role.label,
+				aliases: [],
+				systemPrompt: `Do not delegate. Untrusted role brief:\n${role.roleBrief}`,
+				fallbackModels: [],
+				defaultContext: "fresh",
+				inheritProjectContext: false,
+				inheritSkills: false,
+				source: "dynamic",
+				filePath: "<generated>",
+			});
+		}
 
-    const results = new Map<number, Promise<TaskResult>>();
-    for (const index of plan.order) {
-      const node = plan.nodes[index]!;
-      results.set(
-        index,
-        Promise.all(
-          node.dependsOn.map((dependency) => results.get(dependency)!),
-        ).then(async (dependencies) =>
-          dependencies.every((value) => value.state === "completed")
-            ? this.runOne(
-                runId,
-                node.id,
-                node.roleId,
-                node.task,
-                objective.cwd,
-                objective.context,
-                objective.tools,
-                signal,
-              )
-            : { id: node.id, state: "blocked", text: "Blocked by dependency" },
-        ),
-      );
-    }
+		const results = new Map<number, Promise<TaskResult>>();
+		const requireResult = (nodeIndex: number): Promise<TaskResult> => {
+			const result = results.get(nodeIndex);
+			if (result === undefined)
+				throw new Error(`Missing result for dynamic node: ${nodeIndex}`);
+			return result;
+		};
+		for (const index of plan.order) {
+			const node = plan.nodes[index];
+			if (node === undefined) throw new Error(`Missing dynamic node: ${index}`);
+			results.set(
+				index,
+				Promise.all(node.dependsOn.map(requireResult)).then(
+					async (dependencies) =>
+						dependencies.every((value) => value.state === "completed")
+							? this.runOne(
+									runId,
+									node.id,
+									node.roleId,
+									node.task,
+									objective.cwd,
+									objective.context,
+									objective.tools,
+									signal,
+								)
+							: {
+									id: node.id,
+									state: "blocked",
+									text: "Blocked by dependency",
+								},
+				),
+			);
+		}
 
-    const tasks = await Promise.all(
-      plan.nodes.map((_, index) => results.get(index)!),
-    );
-    return this.result(runId, tasks);
-  }
+		const tasks = await Promise.all(
+			plan.nodes.map((_, index) => requireResult(index)),
+		);
+		return this.result(runId, tasks);
+	}
 
-  private runExplicit(
-    runId: string,
-    taskId: string,
-    request: ExplicitTaskRequest,
-    signal?: AbortSignal,
-  ): Promise<TaskResult> {
-    return this.runOne(
-      runId,
-      taskId,
-      request.agent,
-      request.task,
-      request.cwd,
-      request.context,
-      request.tools,
-      signal,
-    );
-  }
+	private runExplicit(
+		runId: string,
+		taskId: string,
+		request: ExplicitTaskRequest,
+		signal?: AbortSignal,
+	): Promise<TaskResult> {
+		return this.runOne(
+			runId,
+			taskId,
+			request.agent,
+			request.task,
+			request.cwd,
+			request.context,
+			request.tools,
+			signal,
+		);
+	}
 
-  private async runOne(
-    runId: string,
-    taskId: string,
-    agentName: string,
-    task: string,
-    cwd: string | undefined,
-    requestedContext: ContextMode | undefined,
-    requestedTools: string[] | undefined,
-    signal?: AbortSignal,
-  ): Promise<TaskResult> {
-    const agent = this.agents.get(agentName);
-    if (!agent) {
-      return {
-        id: taskId,
-        state: "failed",
-        text: "",
-        error: `Unknown agent: ${agentName}`,
-      };
-    }
+	private async runOne(
+		runId: string,
+		taskId: string,
+		agentName: string,
+		task: string,
+		cwd: string | undefined,
+		requestedContext: ContextMode | undefined,
+		requestedTools: string[] | undefined,
+		signal?: AbortSignal,
+	): Promise<TaskResult> {
+		const agent = this.agents.get(agentName);
+		if (!agent) {
+			return {
+				id: taskId,
+				state: "failed",
+				text: "",
+				error: `Unknown agent: ${agentName}`,
+			};
+		}
 
-    const context = requestedContext ?? agent.defaultContext;
-    if (context === "fork") {
-      return {
-        id: taskId,
-        state: "failed",
-        text: "",
-        error: "fork context is not supported for ephemeral child sessions",
-      };
-    }
+		const context = requestedContext ?? agent.defaultContext;
+		if (context === "fork") {
+			return {
+				id: taskId,
+				state: "failed",
+				text: "",
+				error: "fork context is not supported for ephemeral child sessions",
+			};
+		}
 
-    try {
-      const available = [
-        ...new Set([
-          ...this.parentTools,
-          ...this.parentToolSources
-            .filter(
-              (tool) =>
-                tool.exposure === "codemode" || tool.exposure === "deferred",
-            )
-            .map((tool) => tool.name),
-        ]),
-      ];
-      const tools = resolveTools(available, agent.tools, requestedTools);
-      const activeTools = requestedTools ?? agent.tools ?? this.parentTools;
-      const inherited = resolveChildTools(
-        tools,
-        activeTools,
-        this.parentToolSources,
-      );
-      const text = await this.scheduler.run(runId, taskId, signal, () =>
-        this.executor.run({
-          runId,
-          taskId,
-          task,
-          agent,
-          tools,
-          activeTools: inherited.activeTools,
-          toolSources: inherited.toolSources,
-          cwd: cwd ?? this.defaultCwd,
-          context,
-          ...(signal ? { signal } : {}),
-        }),
-      );
-      return { id: taskId, state: "completed", text };
-    } catch (error) {
-      return {
-        id: taskId,
-        state: signal?.aborted ? "cancelled" : "failed",
-        text: "",
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-  }
+		try {
+			const available = [
+				...new Set([
+					...this.parentTools,
+					...this.parentToolSources
+						.filter(
+							(tool) =>
+								tool.exposure === "codemode" || tool.exposure === "deferred",
+						)
+						.map((tool) => tool.name),
+				]),
+			];
+			const tools = resolveTools(available, agent.tools, requestedTools);
+			const activeTools = requestedTools ?? agent.tools ?? this.parentTools;
+			const inherited = resolveChildTools(
+				tools,
+				activeTools,
+				this.parentToolSources,
+			);
+			const text = await this.scheduler.run(runId, taskId, signal, () =>
+				this.executor.run({
+					runId,
+					taskId,
+					task,
+					agent,
+					tools,
+					activeTools: inherited.activeTools,
+					toolSources: inherited.toolSources,
+					cwd: cwd ?? this.defaultCwd,
+					context,
+					...(signal ? { signal } : {}),
+				}),
+			);
+			return { id: taskId, state: "completed", text };
+		} catch (error) {
+			return {
+				id: taskId,
+				state: signal?.aborted ? "cancelled" : "failed",
+				text: "",
+				error: error instanceof Error ? error.message : String(error),
+			};
+		}
+	}
 
-  private result(runId: string, tasks: TaskResult[]): RunResult {
-    return {
-      runId,
-      state: tasks.every((task) => task.state === "completed")
-        ? "completed"
-        : "failed",
-      tasks,
-    };
-  }
+	private result(runId: string, tasks: TaskResult[]): RunResult {
+		return {
+			runId,
+			state: tasks.every((task) => task.state === "completed")
+				? "completed"
+				: "failed",
+			tasks,
+		};
+	}
 }

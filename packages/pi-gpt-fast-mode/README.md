@@ -14,9 +14,9 @@ To enable Fast mode by default, add this to global Pi `settings.json`:
 
 ```json
 {
-  "pi-gpt-fast-mode": {
-    "enabled": true
-  }
+	"pi-gpt-fast-mode": {
+		"enabled": true
+	}
 }
 ```
 

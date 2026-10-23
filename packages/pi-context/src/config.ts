@@ -46,15 +46,22 @@ function normalizeSources(value: unknown): SourceDefaults {
 
 function normalizeExtraFiles(value: unknown): string[] {
 	if (!Array.isArray(value)) return [];
-	return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+	return value.filter(
+		(item): item is string =>
+			typeof item === "string" && item.trim().length > 0,
+	);
 }
 
 export function normalizeConfig(raw: unknown): ContextConfig {
-	if (!isObject(raw)) return { ...DEFAULT_CONFIG, sources: { ...DEFAULT_CONFIG.sources } };
+	if (!isObject(raw))
+		return { ...DEFAULT_CONFIG, sources: { ...DEFAULT_CONFIG.sources } };
 	return {
 		sources: normalizeSources(raw.sources),
 		extraFiles: normalizeExtraFiles(raw.extraFiles),
-		startupSummary: typeof raw.startupSummary === "boolean" ? raw.startupSummary : DEFAULT_CONFIG.startupSummary,
+		startupSummary:
+			typeof raw.startupSummary === "boolean"
+				? raw.startupSummary
+				: DEFAULT_CONFIG.startupSummary,
 	};
 }
 
@@ -70,13 +77,18 @@ export function loadConfig(path = configPath()): ContextConfig {
 		const parsed: unknown = JSON.parse(readFileSync(path, "utf8"));
 		return normalizeConfig(parsed);
 	} catch (error) {
-		console.warn(`pi-context: invalid JSON at ${path}, using defaults — ${String(error)}`);
+		console.warn(
+			`pi-context: invalid JSON at ${path}, using defaults — ${String(error)}`,
+		);
 		return normalizeConfig(undefined);
 	}
 }
 
 /** Persist per-kind defaults, keeping other config fields intact. */
-export function saveSourceDefaults(sources: SourceDefaults, path = configPath()): void {
+export function saveSourceDefaults(
+	sources: SourceDefaults,
+	path = configPath(),
+): void {
 	const current = loadConfig(path);
 	const next: ContextConfig = { ...current, sources: { ...sources } };
 	mkdirSync(dirname(path), { recursive: true });

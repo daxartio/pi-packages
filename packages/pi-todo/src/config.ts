@@ -11,13 +11,18 @@ export function validateGuidanceFields(fields: unknown): GuidanceFields {
 	if (!fields || typeof fields !== "object") return {};
 	const guidance = fields as Record<string, unknown>;
 	const result: GuidanceFields = {};
-	if (typeof guidance.promptSnippet === "string" && guidance.promptSnippet.length > 0) {
+	if (
+		typeof guidance.promptSnippet === "string" &&
+		guidance.promptSnippet.length > 0
+	) {
 		result.promptSnippet = guidance.promptSnippet;
 	}
 	if (
 		Array.isArray(guidance.promptGuidelines) &&
 		guidance.promptGuidelines.length > 0 &&
-		guidance.promptGuidelines.every((item) => typeof item === "string" && item.length > 0)
+		guidance.promptGuidelines.every(
+			(item) => typeof item === "string" && item.length > 0,
+		)
 	) {
 		result.promptGuidelines = guidance.promptGuidelines;
 	}
@@ -26,7 +31,10 @@ export function validateGuidanceFields(fields: unknown): GuidanceFields {
 
 function configPath(): string {
 	const configured = process.env.XDG_CONFIG_HOME?.trim();
-	const configDir = configured && isAbsolute(configured) ? configured : join(homedir(), ".config");
+	const configDir =
+		configured && isAbsolute(configured)
+			? configured
+			: join(homedir(), ".config");
 	return join(configDir, "pi-todo", "config.json");
 }
 
@@ -35,9 +43,15 @@ function loadJsonConfig<T>(): T {
 	if (!existsSync(path)) return {} as T;
 	try {
 		const parsed: unknown = JSON.parse(readFileSync(path, "utf8"));
-		return parsed !== null && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as T) : ({} as T);
+		return parsed !== null &&
+			typeof parsed === "object" &&
+			!Array.isArray(parsed)
+			? (parsed as T)
+			: ({} as T);
 	} catch (error) {
-		console.warn(`pi-todo: invalid JSON at ${path}, using defaults — ${String(error)}`);
+		console.warn(
+			`pi-todo: invalid JSON at ${path}, using defaults — ${String(error)}`,
+		);
 		return {} as T;
 	}
 }
@@ -117,13 +131,16 @@ export function isValidCollapseKeySpec(spec: string): boolean {
 	// and ignores unknown parts, so a typo like `ctr+]` would silently match every
 	// bare `]` keypress (and the raw terminal listener would consume them globally).
 	if (!spec) return false;
-	if (spec.startsWith("+") || spec.endsWith("+") || spec.includes("++")) return false;
+	if (spec.startsWith("+") || spec.endsWith("+") || spec.includes("++"))
+		return false;
 	const parts = spec.split("+");
 	const base = parts[parts.length - 1] ?? "";
 	const modifiers = parts.slice(0, -1);
 	if (modifiers.length !== new Set(modifiers).size) return false;
 	if (!modifiers.every((m) => MODIFIERS.has(m))) return false;
-	return base.length === 1 ? /[a-z0-9_\-!@#$%^&*()|~`'":;,./<>?[\]{}=\\]/.test(base) : SPECIAL_KEYS.has(base);
+	return base.length === 1
+		? /[a-z0-9_\-!@#$%^&*()|~`'":;,./<>?[\]{}=\\]/.test(base)
+		: SPECIAL_KEYS.has(base);
 }
 
 /** Resolve the collapse/expand key from config, read fresh on every call
@@ -133,9 +150,11 @@ export function isValidCollapseKeySpec(spec: string): boolean {
  *  spec. */
 export function resolveCollapseKey(): CollapseKeySpec {
 	const config = loadConfig();
-	const raw = typeof config.collapseKey === "string" ? config.collapseKey.trim().toLowerCase() : undefined;
+	const raw =
+		typeof config.collapseKey === "string"
+			? config.collapseKey.trim().toLowerCase()
+			: undefined;
 	if (raw === undefined || raw === "") return DEFAULT_COLLAPSE_KEY;
 	if (raw === COLLAPSE_KEY_OFF) return COLLAPSE_KEY_OFF;
 	return isValidCollapseKeySpec(raw) ? raw : DEFAULT_COLLAPSE_KEY;
 }
-

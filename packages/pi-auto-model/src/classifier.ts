@@ -1,4 +1,10 @@
-import type { Api, AssistantMessage, Context, Model, ModelsApiStreamOptions } from "@earendil-works/pi-ai";
+import type {
+	Api,
+	AssistantMessage,
+	Context,
+	Model,
+	ModelsApiStreamOptions,
+} from "@earendil-works/pi-ai";
 import type { AutoModelConfig, ThinkingLevel } from "./config.ts";
 
 export const DEFAULT_CLASSIFIER_TIMEOUT_MS = 15_000;
@@ -50,14 +56,26 @@ export type CompleteModel = (
 	options: ModelsApiStreamOptions<Api>,
 ) => Promise<AssistantMessage>;
 
-const THINKING_LEVEL_SET = new Set<string>(["off", "minimal", "low", "medium", "high", "xhigh", "max"]);
+const THINKING_LEVEL_SET = new Set<string>([
+	"off",
+	"minimal",
+	"low",
+	"medium",
+	"high",
+	"xhigh",
+	"max",
+]);
 
-export function describeCandidateFacts(facts: CandidateFacts | undefined): string {
+export function describeCandidateFacts(
+	facts: CandidateFacts | undefined,
+): string {
 	if (!facts) return "";
 	const parts: string[] = [];
 	parts.push(facts.reasoning ? "reasoning" : "non-reasoning");
-	if (facts.input && facts.input.length > 0) parts.push(`input: ${facts.input.join("+")}`);
-	if (facts.contextWindow) parts.push(`context: ${Math.round(facts.contextWindow / 1000)}k`);
+	if (facts.input && facts.input.length > 0)
+		parts.push(`input: ${facts.input.join("+")}`);
+	if (facts.contextWindow)
+		parts.push(`context: ${Math.round(facts.contextWindow / 1000)}k`);
 	const cost = facts.cost;
 	if (cost?.input !== undefined && cost?.output !== undefined) {
 		parts.push(`cost $${cost.input}/$${cost.output} per Mtok`);
@@ -131,11 +149,15 @@ export function parseClassificationResponse(
 	const [indexRaw, thinkingRaw, ...reasonParts] = firstLine.split("|");
 	const index = Number.parseInt((indexRaw ?? "").trim(), 10);
 	if (!Number.isInteger(index) || index < 1 || index > candidates.length) {
-		throw new Error(`Classifier returned an invalid candidate index: ${JSON.stringify(text)}`);
+		throw new Error(
+			`Classifier returned an invalid candidate index: ${JSON.stringify(text)}`,
+		);
 	}
 	const candidate = candidates[index - 1];
 	if (!candidate) {
-		throw new Error(`Classifier returned an out-of-range candidate index: ${index}`);
+		throw new Error(
+			`Classifier returned an out-of-range candidate index: ${index}`,
+		);
 	}
 	let thinkingLevel: ThinkingLevel | undefined;
 	const normalizedThinking = (thinkingRaw ?? "").trim().toLowerCase();
@@ -148,7 +170,10 @@ export function parseClassificationResponse(
 	return { index: index - 1, thinkingLevel, reason };
 }
 
-function combineSignals(signal: AbortSignal | undefined, timeoutMs: number): AbortSignal {
+function combineSignals(
+	signal: AbortSignal | undefined,
+	timeoutMs: number,
+): AbortSignal {
 	const timeout = AbortSignal.timeout(timeoutMs);
 	return signal ? AbortSignal.any([signal, timeout]) : timeout;
 }
@@ -158,7 +183,10 @@ export async function classifyPrompt(
 	request: ClassifierRequest,
 	timeoutMs = DEFAULT_CLASSIFIER_TIMEOUT_MS,
 ): Promise<Classification> {
-	const attachmentNote = request.imageCount > 0 ? `\n\nImage attachments: ${request.imageCount}` : "";
+	const attachmentNote =
+		request.imageCount > 0
+			? `\n\nImage attachments: ${request.imageCount}`
+			: "";
 	const context: Context = {
 		systemPrompt: buildClassifierSystemPrompt(
 			request.config,
@@ -179,7 +207,8 @@ export async function classifyPrompt(
 		signal: combineSignals(request.signal, timeoutMs),
 		cacheRetention: "none",
 		maxTokens: Math.min(CLASSIFIER_MAX_TOKENS, request.model.maxTokens),
-		...(!request.classifierThinkingLevel || request.classifierThinkingLevel === "off"
+		...(!request.classifierThinkingLevel ||
+		request.classifierThinkingLevel === "off"
 			? {}
 			: { reasoningEffort: request.classifierThinkingLevel }),
 	} as ModelsApiStreamOptions<Api>;
@@ -190,7 +219,9 @@ export async function classifyPrompt(
 		);
 	}
 	const text = response.content
-		.filter((item): item is { type: "text"; text: string } => item.type === "text")
+		.filter(
+			(item): item is { type: "text"; text: string } => item.type === "text",
+		)
 		.map((item) => item.text)
 		.join("");
 	if (text.trim() === "") {
