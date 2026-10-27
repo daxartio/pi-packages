@@ -15,6 +15,7 @@ A Bun/TypeScript monorepo with extensions for the [Pi coding agent](https://gith
 - [`pi-model-context`](packages/pi-model-context) — adds live scoped models, catalog previews, and codemode discovery instructions to the agent context.
 - [`pi-review`](packages/pi-review) — provides a standalone `/review` command.
 - [`pi-servo-fetch`](packages/pi-servo-fetch) — adds stateless Servo-powered web rendering with local extraction, URL discovery, JavaScript evaluation, and screenshots through the official JavaScript SDK.
+- [`pi-startup-scripts`](packages/pi-startup-scripts) — runs custom scripts once per session and adds their output to system context.
 - [`pi-subagents`](packages/pi-subagents) — runs bounded isolated subagent sessions.
 - [`pi-todo`](packages/pi-todo) — adds a persistent todo-list overlay.
 - [`pi-worktree`](packages/pi-worktree) — manages package-owned Git worktrees.

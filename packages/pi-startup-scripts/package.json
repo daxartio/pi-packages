@@ -1,0 +1,32 @@
+{
+	"name": "pi-startup-scripts",
+	"version": "0.1.0",
+	"description": "Run configured scripts once per Pi session and add their output to the system context.",
+	"type": "module",
+	"module": "src/index.ts",
+	"license": "MIT",
+	"keywords": [
+		"pi-package",
+		"pi-extension",
+		"startup",
+		"context"
+	],
+	"pi": {
+		"extensions": [
+			"./src/index.ts"
+		]
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"scripts": {
+		"test": "bun test ./test/",
+		"typecheck": "tsc --noEmit"
+	},
+	"peerDependencies": {
+		"@earendil-works/pi-coding-agent": "*"
+	},
+	"files": [
+		"src"
+	]
+}

@@ -146,6 +146,13 @@
         "typebox": "*",
       },
     },
+    "packages/pi-startup-scripts": {
+      "name": "pi-startup-scripts",
+      "version": "0.1.0",
+      "peerDependencies": {
+        "@earendil-works/pi-coding-agent": "*",
+      },
+    },
     "packages/pi-subagents": {
       "name": "pi-subagents",
       "version": "0.1.0",
@@ -553,6 +560,8 @@
     "pi-review": ["pi-review@workspace:packages/pi-review"],
 
     "pi-servo-fetch": ["pi-servo-fetch@workspace:packages/pi-servo-fetch"],
+
+    "pi-startup-scripts": ["pi-startup-scripts@workspace:packages/pi-startup-scripts"],
 
     "pi-subagents": ["pi-subagents@workspace:packages/pi-subagents"],
 
