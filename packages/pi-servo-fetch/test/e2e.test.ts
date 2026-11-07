@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { once } from "node:events";
-import { readFile, rm } from "node:fs/promises";
+import { readdir, readFile, rm, stat } from "node:fs/promises";
 import { createServer } from "node:http";
-import { dirname } from "node:path";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import test from "node:test";
 import { ServoClient } from "../src/client.js";
 
@@ -12,7 +13,7 @@ function text(result: Awaited<ReturnType<ServoClient["fetch"]>>): string {
 	return block.text;
 }
 
-test("official SDK runs stateless web tools with local extraction and engine restart", {
+test("bundled engine runs stateless tools with local extraction, isolated storage and restart", {
 	skip: process.env.PI_SERVO_FETCH_E2E !== "1",
 	timeout: 90000,
 }, async () => {
@@ -40,12 +41,18 @@ test("official SDK runs stateless web tools with local extraction and engine res
 			response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
 			const title = request.url === "/next" ? "Next fixture" : "Servo fixture";
 			response.end(
-				`<!doctype html><html><head><title>${title}</title></head><body><article><h1>${title}</h1><p>${paragraph}</p><p id="dynamic">Before JS</p><a href="/next">Next page</a></article><script>document.getElementById('dynamic').textContent = 'Rendered by JavaScript';</script></body></html>`,
+				`<!doctype html><html><head><title>${title}</title></head><body><article><h1>${title}</h1><p>${paragraph}</p><p id="dynamic">Before JS</p><a href="/next">Next page</a></article><script>document.getElementById('dynamic').textContent = 'Rendered by JavaScript'; indexedDB.open('pi-servo-fetch-fixture');</script></body></html>`,
 			);
 		}
 	});
 	const previousAllowPrivate = process.env.SERVO_FETCH_ALLOW_PRIVATE;
 	const client = new ServoClient();
+	const cwdEntries = await readdir(process.cwd());
+	const runtimeDirectories = async () =>
+		(await readdir(tmpdir())).filter((entry) =>
+			entry.startsWith("pi-servo-fetch-runtime-"),
+		);
+	const originalDirectories = new Set(await runtimeDirectories());
 	try {
 		server.listen(0, "127.0.0.1");
 		await once(server, "listening");
@@ -213,7 +220,15 @@ test("official SDK runs stateless web tools with local extraction and engine res
 			[`${url}/`, `${url}/next`].sort(),
 		);
 
+		const activeDirectories = (await runtimeDirectories()).filter(
+			(entry) => !originalDirectories.has(entry),
+		);
+		assert.equal(activeDirectories.length, 1);
+		assert.deepEqual(await readdir(process.cwd()), cwdEntries);
 		await client.shutdown();
+		for (const directory of activeDirectories) {
+			await assert.rejects(stat(join(tmpdir(), directory)), { code: "ENOENT" });
+		}
 		assert.equal(
 			text(await client.fetch({ url, format: "text", selector: "#dynamic" })),
 			"Rendered by JavaScript",
@@ -240,5 +255,12 @@ test("official SDK runs stateless web tools with local extraction and engine res
 		await new Promise<void>((resolve, reject) =>
 			server.close((error) => (error ? reject(error) : resolve())),
 		);
+		assert.deepEqual(
+			(await runtimeDirectories()).filter(
+				(entry) => !originalDirectories.has(entry),
+			),
+			[],
+		);
+		assert.deepEqual(await readdir(process.cwd()), cwdEntries);
 	}
 });

@@ -747,6 +747,32 @@ test("shutdown is lazy, releases the loaded SDK, and permits restart", async () 
 	await runtime.client.shutdown();
 });
 
+test("shutdown waits for asynchronous backend cleanup before allowing restart", async () => {
+	const started = deferred();
+	const gate = deferred();
+	const runtime = harness({
+		async shutdown() {
+			started.resolve();
+			await gate.promise;
+		},
+	});
+	await runtime.client.fetch({ url });
+	const stopping = runtime.client.shutdown();
+	try {
+		await started.promise;
+		await expect(runtime.client.fetch({ url })).rejects.toThrow(
+			"Servo client was reset",
+		);
+		gate.resolve();
+		await stopping;
+		expect(text(await runtime.client.fetch({ url }))).toBe(markdown);
+	} finally {
+		gate.resolve();
+		await stopping;
+		await runtime.client.shutdown();
+	}
+});
+
 test("shutdown waits for a pending SDK load, rejects new work and suppresses stale rendering", async () => {
 	const runtime = harness();
 	const started = deferred();

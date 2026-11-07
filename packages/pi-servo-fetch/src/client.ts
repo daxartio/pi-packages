@@ -2,6 +2,7 @@ import type { AgentToolResult } from "@earendil-works/pi-coding-agent";
 import type { Article, FetchOptions } from "servo-fetch";
 import type { Static, TSchema } from "typebox";
 import { Value } from "typebox/value";
+import { loadBackend } from "./backend.js";
 import { extractSnapshot, snapshotExpression } from "./extraction.js";
 import { type ResourceReader, readResource } from "./http.js";
 import {
@@ -20,8 +21,8 @@ import {
 
 export type ServoBackend = Pick<
 	typeof import("servo-fetch"),
-	"map" | "evaluate" | "screenshot" | "shutdown"
->;
+	"map" | "evaluate" | "screenshot"
+> & { shutdown(): void | Promise<void> };
 export type BackendLoader = () => Promise<ServoBackend>;
 
 interface FetchedPage {
@@ -75,7 +76,7 @@ export class ServoClient {
 	private lifecycle = new AbortController();
 
 	constructor(
-		private readonly load: BackendLoader = () => import("servo-fetch"),
+		private readonly load: BackendLoader = loadBackend,
 		private readonly read: ResourceReader = readResource,
 	) {}
 
@@ -286,6 +287,6 @@ export class ServoClient {
 	}
 
 	private async stop(pending?: Promise<ServoBackend>): Promise<void> {
-		if (pending) (await pending).shutdown();
+		if (pending) await (await pending).shutdown();
 	}
 }
