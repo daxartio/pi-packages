@@ -165,7 +165,30 @@ export function createRuntimeHarness(
 				unsupportedHarnessMethod("pi.events.on");
 			},
 		},
-		exec: async () => ({ stdout: "", stderr: "", code: 0, killed: false }),
+		exec: async () => ({
+			stdout: "",
+			stderr: "",
+			code: 0,
+			killed: false,
+			truncated: false,
+		}),
+		getSettings() {
+			return unsupportedHarnessMethod("pi.getSettings");
+		},
+		registerToolRenderer() {},
+		registerMcpServer() {
+			unsupportedHarnessMethod("pi.registerMcpServer");
+		},
+		unregisterMcpServer() {
+			unsupportedHarnessMethod("pi.unregisterMcpServer");
+		},
+		getMcpServers: () => [],
+		registerVirtualModel() {
+			unsupportedHarnessMethod("pi.registerVirtualModel");
+		},
+		unregisterVirtualModel() {
+			unsupportedHarnessMethod("pi.unregisterVirtualModel");
+		},
 		getActiveTools: () => [],
 		getAllTools: () => [],
 		getCommands: () => [],
@@ -197,7 +220,25 @@ export function createRuntimeHarness(
 					params as Parameters<typeof tool.execute>[1],
 					undefined,
 					undefined,
-					ctx,
+					{
+						...ctx,
+						tools: [],
+						executeTool: async (name, args) => ({
+							toolCall: {
+								type: "toolCall",
+								id: "tool-call/1",
+								name,
+								arguments: args && typeof args === "object" ? { ...args } : {},
+							},
+							isError: true,
+							result: {
+								content: [
+									{ type: "text", text: `Tool not available: ${name}` },
+								],
+								details: {},
+							},
+						}),
+					},
 				),
 			);
 		},

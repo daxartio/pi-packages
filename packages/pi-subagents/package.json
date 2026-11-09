@@ -28,7 +28,7 @@
 		"typebox": "*"
 	},
 	"devDependencies": {
-		"tsx": "^4.22.3"
+		"tsx": "^4.23.15"
 	},
 	"files": [
 		"src",

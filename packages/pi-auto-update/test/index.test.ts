@@ -77,6 +77,7 @@ const successfulUpdate: ExecResult = {
 	stdout: "",
 	stderr: "",
 	killed: false,
+	truncated: false,
 };
 
 let previousOffline: string | undefined;

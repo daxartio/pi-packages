@@ -1,4 +1,3 @@
-import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 
 const Url = Type.String({
@@ -37,7 +36,8 @@ const ExtractionOptions = {
 	...RenderOptions,
 	selector: Selector,
 	visibility: Type.Optional(
-		StringEnum(["moderate", "strict", "off"] as const, {
+		Type.Enum(["moderate", "strict", "off"], {
+			type: "string",
 			description:
 				"Stateless DOM visibility policy: moderate excludes hidden/display-none/visibility-hidden elements; strict also excludes transparent/zero-size elements; off disables filtering. Full-document HTML defaults off; other extraction defaults moderate.",
 		}),
@@ -63,7 +63,8 @@ export const FetchParams = Type.Object(
 	{
 		url: Url,
 		format: Type.Optional(
-			StringEnum(["markdown", "html", "text", "json"] as const, {
+			Type.Enum(["markdown", "html", "text", "json"], {
+				type: "string",
 				description:
 					"Output format (default: markdown). HTML returns selected outerHTML or the full document. Markdown/JSON without selector prefer a single substantial article, otherwise local Readability with body fallback; text returns body text. JSON contains title, HTML content and Markdown textContent.",
 			}),

@@ -69,6 +69,7 @@ test("both runtime built-in source formats resolve without loading extensions", 
 				name,
 				description: name,
 				parameters: { type: "object" },
+				exposure: "direct",
 				sourceInfo: {
 					path: sourcePath,
 					source: "builtin",
@@ -82,7 +83,10 @@ test("both runtime built-in source formats resolve without loading extensions", 
 			name,
 			sourcePath: `<builtin:${name}>`,
 		}));
-		assert.deepEqual(captured, canonical);
+		assert.deepEqual(
+			captured,
+			canonical.map((tool) => ({ ...tool, exposure: "direct" })),
+		);
 		assert.deepEqual(
 			resolveChildTools(BUILTIN_TOOLS, BUILTIN_TOOLS, builtinSources),
 			{

@@ -2,7 +2,11 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type {
+	BeforeAgentStartEvent,
+	ExtensionAPI,
+	ExtensionContext,
+} from "@earendil-works/pi-coding-agent";
 import autoModel from "../src/index.ts";
 
 type Command = Parameters<ExtensionAPI["registerCommand"]>[1];
@@ -15,6 +19,11 @@ describe("automodel command", () => {
 	let context: CommandContext;
 	let notices: { message: string; type?: string }[];
 	let statuses: (string | undefined)[];
+	let beforeAgentStart: (
+		event: BeforeAgentStartEvent,
+		ctx: ExtensionContext,
+	) => unknown;
+	let catalogReads: number;
 
 	beforeEach(async () => {
 		directory = await mkdtemp(join(tmpdir(), "pi-auto-model-command-"));
@@ -22,17 +31,26 @@ describe("automodel command", () => {
 		process.env.PI_CODING_AGENT_DIR = directory;
 		notices = [];
 		statuses = [];
+		catalogReads = 0;
 		const api = {
 			registerCommand(name: string, registered: Command) {
 				expect(name).toBe("automodel");
 				command = registered;
 			},
 			registerShortcut() {},
-			on() {},
+			on(name: string, handler: typeof beforeAgentStart) {
+				if (name === "before_agent_start") beforeAgentStart = handler;
+			},
 		};
 		autoModel(api as unknown as ExtensionAPI);
 		context = {
 			scopedModels: [],
+			modelRegistry: {
+				getAvailable() {
+					catalogReads += 1;
+					return [];
+				},
+			},
 			ui: {
 				notify(message: string, type?: string) {
 					notices.push({ message, type });
@@ -68,6 +86,56 @@ describe("automodel command", () => {
 		await command.handler("", context);
 		expect(notices.at(-1)?.message).toBe("Auto model enabled.");
 		expect(statuses.at(-1)).toBe("auto:model");
+	});
+
+	test("routes user prompts but ignores custom-triggered runs", async () => {
+		await command.handler("", context);
+		const baseEvent = {
+			type: "before_agent_start" as const,
+			systemPrompt: "base prompt",
+			systemPromptOptions: {
+				cwd: process.cwd(),
+				selectedTools: [],
+				hiddenTools: [],
+				toolSnippets: {},
+				toolGuidelines: {},
+				promptGuidelines: [],
+				appendSystemPrompt: "",
+				sections: {},
+				contextFiles: [],
+				skills: [],
+			},
+		};
+		beforeAgentStart(
+			{
+				...baseEvent,
+				messageType: "custom",
+				message: {
+					role: "custom",
+					customType: "continuation",
+					content: "Keep working",
+					display: false,
+					timestamp: 1,
+				},
+			},
+			context,
+		);
+		expect(catalogReads).toBe(0);
+		beforeAgentStart(
+			{ ...baseEvent, messageType: "user", prompt: "  " },
+			context,
+		);
+		expect(catalogReads).toBe(0);
+		beforeAgentStart(
+			{
+				...baseEvent,
+				messageType: "user",
+				prompt: "Explain this image",
+				images: [{ type: "image", data: "aGVsbG8=", mimeType: "image/png" }],
+			},
+			context,
+		);
+		expect(catalogReads).toBe(1);
 	});
 
 	test("status and removed on/off arguments do not create config", async () => {

@@ -1,22 +1,17 @@
-import { StringEnum } from "@earendil-works/pi-ai";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { type Static, Type } from "typebox";
 import { WorktreeService } from "./service.js";
 
 export const Params = Type.Object(
 	{
-		action: StringEnum([
-			"create",
-			"list",
-			"status",
-			"remove",
-			"cleanup",
-		] as const),
+		action: Type.Enum(["create", "list", "status", "remove", "cleanup"], {
+			type: "string",
+		}),
 		name: Type.Optional(Type.String({ minLength: 1, maxLength: 128 })),
 		id: Type.Optional(Type.String({ minLength: 1 })),
 		baseRef: Type.Optional(Type.String()),
 		dirtyPolicy: Type.Optional(
-			StringEnum(["reject", "ignore", "snapshot"] as const),
+			Type.Enum(["reject", "ignore", "snapshot"], { type: "string" }),
 		),
 		force: Type.Optional(Type.Boolean()),
 		keepBranch: Type.Optional(Type.Boolean()),

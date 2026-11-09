@@ -100,7 +100,9 @@ export function createInputContextEventHandlers(
 
 		onBeforeAgentStart: (async (event, ctx) => {
 			const continuationGoalId =
-				continuation.continuationGoalIdFromRuntimePrompt(event.prompt);
+				event.messageType === "custom"
+					? queuedGoalWorkMessageIdForRuntime(event.message)
+					: continuation.continuationGoalIdFromRuntimePrompt(event.prompt);
 			if (continuationGoalId !== null) {
 				continuation.clearContinuationStateFor(continuationGoalId);
 				if (!stateController.isCurrentActiveGoalId(continuationGoalId)) {

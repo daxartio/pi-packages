@@ -473,9 +473,12 @@ test("goal follow-up guard resets when custom-message continuations start", asyn
 		turnIndex: 1,
 		timestamp: 2,
 	});
-	await harness.emit("message_start", {
-		type: "message_start",
+	await harness.emit("before_agent_start", {
+		type: "before_agent_start",
+		messageType: "custom",
 		message: queuedMessage,
+		systemPrompt: "",
+		systemPromptOptions: {},
 	});
 	assert.equal(harness.abortCount, 0);
 	await harness.emit("agent_end", {

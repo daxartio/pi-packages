@@ -1,7 +1,6 @@
 import { test } from "bun:test";
 import assert from "node:assert/strict";
 import { setImmediate } from "node:timers/promises";
-import { stripVTControlCharacters } from "node:util";
 import {
 	type AssistantMessage,
 	createAssistantMessageEventStream,
@@ -21,6 +20,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import {
 	type Component,
+	stripTerminalSequences,
 	type Terminal,
 	type TUI,
 	TuiMainScreen,
@@ -175,6 +175,7 @@ async function createHarness() {
 		clearScreen() {},
 		setTitle() {},
 		setProgress() {},
+		setProgramStatus() {},
 	};
 	const tui = new TuiMainScreen(terminal);
 	let renders = 0;
@@ -250,7 +251,7 @@ async function createHarness() {
 				get closed() {
 					return closed;
 				},
-				text: () => stripVTControlCharacters(overlay.render(120).join("\n")),
+				text: () => stripTerminalSequences(overlay.render(120).join("\n")),
 				async close() {
 					overlay.handleInput("\x1b");
 					await finished;

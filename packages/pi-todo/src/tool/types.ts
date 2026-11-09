@@ -1,4 +1,3 @@
-import { StringEnum } from "@earendil-works/pi-ai";
 import { type Static, Type } from "typebox";
 
 // ---------------------------------------------------------------------------
@@ -84,14 +83,9 @@ export interface TaskMutationParams {
 // ---------------------------------------------------------------------------
 
 export const TodoParamsSchema = Type.Object({
-	action: StringEnum([
-		"create",
-		"update",
-		"list",
-		"get",
-		"delete",
-		"clear",
-	] as const),
+	action: Type.Enum(["create", "update", "list", "get", "delete", "clear"], {
+		type: "string",
+	}),
 	subject: Type.Optional(
 		Type.String({ description: "Task subject line (required for create)" }),
 	),
@@ -105,7 +99,8 @@ export const TodoParamsSchema = Type.Object({
 		}),
 	),
 	status: Type.Optional(
-		StringEnum(["pending", "in_progress", "completed", "deleted"] as const, {
+		Type.Enum(["pending", "in_progress", "completed", "deleted"], {
+			type: "string",
 			description:
 				"Set this task's status (update): one of pending, in_progress, completed, deleted. When action is list, filters returned tasks by this status.",
 		}),

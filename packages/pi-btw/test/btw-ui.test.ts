@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { stripVTControlCharacters } from "node:util";
-import { CURSOR_MARKER, visibleWidth } from "@earendil-works/pi-tui";
+import {
+	CURSOR_MARKER,
+	stripTerminalSequences,
+	visibleWidth,
+} from "@earendil-works/pi-tui";
 import type { BtwExecResult } from "../src/btw.js";
 import {
 	type BtwChatParams,
@@ -104,7 +107,7 @@ function screen(controller: BtwOverlayController, width = 100): string {
 describe("BtwOverlayController", () => {
 	test("opens with an editable input and does not call the model until Enter", async () => {
 		const h = harness();
-		expect(stripVTControlCharacters(screen(h.controller))).toContain(
+		expect(stripTerminalSequences(screen(h.controller))).toContain(
 			"Ask a side question",
 		);
 		expect(screen(h.controller)).toContain(CURSOR_MARKER);

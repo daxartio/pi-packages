@@ -29,7 +29,7 @@
 		"@earendil-works/pi-coding-agent": "*"
 	},
 	"devDependencies": {
-		"@types/bun": "latest"
+		"@types/bun": "^1.4.4"
 	},
 	"files": [
 		"src"

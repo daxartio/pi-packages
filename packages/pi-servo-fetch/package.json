@@ -32,9 +32,9 @@
 		"@mozilla/readability": "0.6.0",
 		"html-to-text": "10.0.1",
 		"ipaddr.js": "2.5.0",
-		"linkedom": "0.18.13",
+		"linkedom": "0.18.15",
 		"node-html-markdown": "2.0.0",
-		"servo-fetch": "0.15.1"
+		"servo-fetch": "0.15.2"
 	},
 	"devDependencies": {
 		"@types/html-to-text": "9.0.4"

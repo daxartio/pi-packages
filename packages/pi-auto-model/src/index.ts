@@ -392,6 +392,7 @@ export default function autoModel(pi: ExtensionAPI): void {
 	});
 
 	pi.on("before_agent_start", (event, ctx) => {
+		if (event.messageType === "custom") return;
 		// Fire and forget: the current model's turn is never blocked by classification.
 		void routePrompt(event.prompt, event.images, ctx);
 	});

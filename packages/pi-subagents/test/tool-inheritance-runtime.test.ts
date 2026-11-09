@@ -15,9 +15,13 @@ const guard = fileURLToPath(
 	new URL("../src/child-tool-guard.ts", import.meta.url),
 );
 
+interface ProbeSnapshot {
+	tools: { name: string; path: string }[];
+}
+
 interface ProbeResult {
 	ready: Record<string, unknown>;
-	snapshot: Record<string, unknown>;
+	snapshot: ProbeSnapshot;
 }
 
 async function probe(
@@ -100,7 +104,7 @@ export default function(pi) {
 		stderr += chunk.toString("utf8");
 	});
 	let timer: NodeJS.Timeout | undefined;
-	let snapshot: Record<string, unknown> | undefined;
+	let snapshot: ProbeSnapshot | undefined;
 	try {
 		return await new Promise<ProbeResult>((resolve, reject) => {
 			let buffer = "";
@@ -123,7 +127,17 @@ export default function(pi) {
 					buffer = buffer.slice(newline + 1);
 					try {
 						const event: Record<string, unknown> = JSON.parse(line);
-						if (event.type === "probe_snapshot") snapshot = event;
+						if (event.type === "probe_snapshot") {
+							assert.ok(Array.isArray(event.tools));
+							snapshot = {
+								tools: event.tools.map((tool: unknown) => {
+									assert.ok(tool !== null && typeof tool === "object");
+									assert.ok("name" in tool && typeof tool.name === "string");
+									assert.ok("path" in tool && typeof tool.path === "string");
+									return { name: tool.name, path: tool.path };
+								}),
+							};
+						}
 						if (event.type === "subagent_tools_ready") {
 							if (!snapshot) throw new Error("Missing runtime tool snapshot");
 							resolved = true;

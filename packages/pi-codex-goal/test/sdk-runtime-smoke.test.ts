@@ -203,7 +203,7 @@ test("SDK runtime emits a continuation after willRetry compaction when no retry 
 			{ objective: "ship it" },
 			undefined,
 			undefined,
-			runner.createContext(),
+			runner.createToolContext("tool-call", undefined),
 		);
 		const goalId = goalIdFromToolResult(result);
 
