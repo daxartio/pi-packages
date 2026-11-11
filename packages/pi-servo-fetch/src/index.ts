@@ -9,7 +9,7 @@ import {
 } from "./schema.js";
 
 const OUTPUT_NOTE =
-	" Text output is limited to 2,000 lines or 50 KiB; full output is saved to a temporary file when truncated.";
+	" Output exceeding 100 lines or 2.5 KiB is saved in full to a unique private file in the system temporary directory. Only the file path, UTF-8 format, line count and byte count are returned, without a content preview. Read the file with offset/limit as needed; files are retained across session shutdown/restart (until OS or manual cleanup).";
 
 export function registerTools(
 	pi: Pick<ExtensionAPI, "registerTool" | "on">,

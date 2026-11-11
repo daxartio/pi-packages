@@ -129,7 +129,7 @@ export class ServoClient {
 		const page = await this.fetchPage(params, signal);
 		const result =
 			typeof page.value === "string"
-				? await textResult(page.value)
+				? await textResult(page.value, params.format ?? "markdown")
 				: await jsonResult(page.value);
 		return { ...result, details: { ...result.details, ...page.details } };
 	}

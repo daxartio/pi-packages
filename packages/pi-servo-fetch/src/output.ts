@@ -6,6 +6,8 @@ import {
 	truncateHead,
 } from "@earendil-works/pi-coding-agent";
 
+export type OutputFormat = "markdown" | "html" | "text" | "json";
+
 export interface OutputDetails {
 	source?: "http" | "servo";
 	extraction?: "local-dom";
@@ -13,6 +15,8 @@ export interface OutputDetails {
 	selectorIgnored?: boolean;
 	fullOutputPath?: string;
 	truncated?: boolean;
+	format?: OutputFormat;
+	lines?: number;
 	screenshotPath?: string;
 	bytes?: number;
 }
@@ -29,20 +33,26 @@ async function saveArtifact(
 
 export async function textResult(
 	text: string,
+	format: OutputFormat = "text",
 ): Promise<AgentToolResult<OutputDetails>> {
-	const truncation = truncateHead(text);
+	const truncation = truncateHead(text, { maxLines: 100, maxBytes: 2560 });
 	if (!truncation.truncated) {
 		return { content: [{ type: "text", text }], details: {} };
 	}
-	const fullOutputPath = await saveArtifact("output.txt", text);
+	const extension = { markdown: "md", html: "html", text: "txt", json: "json" }[
+		format
+	];
+	const fullOutputPath = await saveArtifact(`output.${extension}`, text);
+	const lines = truncation.totalLines;
+	const bytes = Buffer.byteLength(text, "utf8");
 	return {
 		content: [
 			{
 				type: "text",
-				text: `${truncation.content}\n\n[Output truncated. Full output saved to ${fullOutputPath}]`,
+				text: `Full output saved to ${fullOutputPath}\nFormat: ${format} (UTF-8)\nLines: ${lines}\nBytes: ${bytes}\nRead the file with offset/limit to inspect the needed content. The file is not deleted on session shutdown.`,
 			},
 		],
-		details: { fullOutputPath, truncated: true },
+		details: { fullOutputPath, truncated: true, format, lines, bytes },
 	};
 }
 
@@ -51,7 +61,7 @@ export async function jsonResult(
 ): Promise<AgentToolResult<OutputDetails>> {
 	const text = JSON.stringify(value, null, 2);
 	if (text === undefined) throw new Error("Servo returned no result");
-	return textResult(text);
+	return textResult(text, "json");
 }
 
 export async function screenshotResult(

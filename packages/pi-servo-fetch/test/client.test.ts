@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { readFile, rm, stat } from "node:fs/promises";
-import { dirname } from "node:path";
+import { tmpdir } from "node:os";
+import { dirname, extname, relative } from "node:path";
 import type { FetchOptions, MapOptions } from "servo-fetch";
 import { type ServoBackend, ServoClient } from "../src/client.js";
 import type { ResourceReader } from "../src/http.js";
@@ -807,7 +808,7 @@ test("shutdown waits for a pending SDK load, rejects new work and suppresses sta
 	}
 });
 
-test("batch keeps complete per-page content and truncates only the combined output", async () => {
+test("batch saves complete combined JSON without an inline page preview", async () => {
 	const content = "x".repeat(60000);
 	const urls = [url, `${url}/other`];
 	const requests: string[] = [];
@@ -832,14 +833,21 @@ test("batch keeps complete per-page content and truncates only the combined outp
 		);
 		expect(requests).toEqual(urls);
 		expect(result.details.truncated).toBe(true);
+		expect(result.details.format).toBe("json");
+		expect(extname(path)).toBe(".json");
+		expect(text(result)).not.toContain(content.slice(0, 100));
 	} finally {
 		await rm(dirname(path), { recursive: true, force: true });
 		await runtime.client.shutdown();
 	}
 });
 
-test("oversized output is bounded, stored privately, and not duplicated in details", async () => {
-	for (const output of ["line\n".repeat(2100), "я".repeat(40000)]) {
+test("oversized output returns only file metadata and stores complete private content", async () => {
+	for (const output of [
+		"line\n".repeat(101),
+		"a".repeat(2561),
+		"я".repeat(1281),
+	]) {
 		const result = await textResult(output);
 		const path = result.details.fullOutputPath;
 		expect(path).toBeDefined();
@@ -847,9 +855,20 @@ test("oversized output is bounded, stored privately, and not duplicated in detai
 		try {
 			expect(await readFile(path, "utf8")).toBe(output);
 			expect((await stat(path)).mode & 0o777).toBe(0o600);
-			expect(Buffer.byteLength(text(result))).toBeLessThan(52000);
-			expect(result.details).toEqual({ fullOutputPath: path, truncated: true });
-			expect(text(result)).toContain("Output truncated");
+			expect(Buffer.byteLength(text(result))).toBeLessThan(1000);
+			expect(text(result)).not.toContain(output.slice(0, 100));
+			const lines = output.split("\n").length - (output.endsWith("\n") ? 1 : 0);
+			expect(result.details).toEqual({
+				fullOutputPath: path,
+				truncated: true,
+				format: "text",
+				lines,
+				bytes: Buffer.byteLength(output),
+			});
+			expect(text(result)).toContain(path);
+			expect(text(result)).toContain("Format: text");
+			expect(text(result)).toContain(`Lines: ${lines}`);
+			expect(relative(tmpdir(), path)).not.toStartWith("..");
 		} finally {
 			await rm(dirname(path), { recursive: true, force: true });
 		}
@@ -859,6 +878,76 @@ test("oversized output is bounded, stored privately, and not duplicated in detai
 		details: {},
 	});
 	await expect(jsonResult(undefined)).rejects.toThrow("no result");
+});
+
+test("output at the line and byte limits remains inline", async () => {
+	for (const output of [
+		"line\n".repeat(100),
+		"a".repeat(2560),
+		"я".repeat(1280),
+	]) {
+		expect(await textResult(output)).toEqual({
+			content: [{ type: "text", text: output }],
+			details: {},
+		});
+	}
+});
+
+test("large fetched pages preserve their format and survive client shutdown", async () => {
+	for (const format of ["markdown", "html", "text", "json"] as const) {
+		const runtime = harness({
+			async evaluate() {
+				return snapshot(
+					url,
+					`<html><head><title>Large page</title></head><body><article><p>${"page-content ".repeat(5000)}</p></article></body></html>`,
+				);
+			},
+		});
+		const result = await runtime.client.fetch({ url, format });
+		const path = result.details.fullOutputPath;
+		if (!path) throw new Error("Missing page artifact");
+		try {
+			await runtime.client.shutdown();
+			const saved = await readFile(path, "utf8");
+			expect(result.details.format).toBe(format);
+			expect(result.details.lines).toBe(saved.split("\n").length);
+			expect(extname(path)).toBe(
+				format === "markdown"
+					? ".md"
+					: format === "text"
+						? ".txt"
+						: `.${format}`,
+			);
+			expect(text(result)).not.toContain("page-content");
+			if (format === "json")
+				expect(JSON.parse(saved).textContent).toContain("page-content");
+		} finally {
+			await runtime.client.shutdown();
+			await rm(dirname(path), { recursive: true, force: true });
+		}
+	}
+});
+
+test("concurrent large outputs use distinct paths and preserve each result", async () => {
+	const outputs = ["first".repeat(12000), "second".repeat(12000)];
+	const results = await Promise.all(
+		outputs.map((output) => textResult(output)),
+	);
+	const paths = results.map((result) => {
+		if (!result.details.fullOutputPath)
+			throw new Error("Missing output artifact");
+		return result.details.fullOutputPath;
+	});
+	try {
+		expect(new Set(paths).size).toBe(outputs.length);
+		expect(
+			await Promise.all(paths.map((path) => readFile(path, "utf8"))),
+		).toEqual(outputs);
+	} finally {
+		await Promise.all(
+			paths.map((path) => rm(dirname(path), { recursive: true, force: true })),
+		);
+	}
 });
 
 test("screenshots return an image and private PNG artifact, not base64 details", async () => {
