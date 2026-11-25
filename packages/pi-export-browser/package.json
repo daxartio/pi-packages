@@ -29,9 +29,9 @@
 		"@earendil-works/pi-coding-agent": "*"
 	},
 	"devDependencies": {
-		"@earendil-works/pi-ai": "^1.5.0",
-		"@earendil-works/pi-coding-agent": "^1.5.0",
-		"@types/bun": "^1.4.4",
+		"@earendil-works/pi-ai": "^1.6.0",
+		"@earendil-works/pi-coding-agent": "^1.6.0",
+		"@types/bun": "^1.4.5",
 		"typescript": "^7.0.2"
 	},
 	"files": [
